@@ -150,7 +150,7 @@ workflow {
     } 
     else if(params.pipeline == "resistome") {
 
-        FASTQ_RESISTOME_WF( fastq_files, params.amr, params.annotation )
+        FASTQ_RESISTOME_WF_BWA( fastq_files, params.amr, params.annotation )
     }  
     else if(params.pipeline == "resistome_BWA") {
 
