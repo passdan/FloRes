@@ -1,6 +1,6 @@
 Overview
 --------
-This repository is a modified version of the [AMR++ core repository](https://github.com/Microbial-Ecology-Group/AMRplusplus) with some notable modifications, changes, and parameterised for running on Cardiff University Biosciences compute cluster (Trinity). For usage and tutorials refer to the core AMR++ documentation.
+This repository is a modified version of the [AMR++ core repository](https://github.com/Microbial-Ecology-Group/AMRplusplus) with some notable modifications, changes, and parameterised for running on different compute systems (notably Super Computing Wales and Google Compute Cloud). For usage and tutorials refer to the core AMR++ documentation.
 
 Notable changes to original pipeline:
 - Integrated fastp & bowtie2 as QC and alignment packages
@@ -12,6 +12,10 @@ Notable changes to original pipeline:
   - Note: Two new workflow parameters: 'standard_AMR_wKraken_and_bracken' and 'kraken_and_braken' (for already filtered/host removed input)
 
 Codebase is provided as-is and is hyper-locally modified for our infrastructure. If you are not concerned about bracken output or fastp & bowtie2 you probably want to work from the original AMR++ repository. 
+Note three branches to the github repository: 
+- Master - Set up for slurm queing systems
+- GCP tuned - For deployment on Google Compute Cloud with the buckets and pipelining system
+- flat - For local running, no queuing system
 
 ---
 
@@ -19,20 +23,24 @@ Codebase is provided as-is and is hyper-locally modified for our infrastructure.
 1. Download the github repository with git clone and the url above
 
 ## Running with singularity
-2. The pipeline is designed and configured to run with singularity & slurm. If you are using these then no further installation  preparation is required.
+2. The pipeline is designed and configured to run with singularity. If you are using this then no further installation preparation is required.
    You may choose to pre-build the singulariy images in advance if wanted. Note: config/singularity_slurm.conf is where singularity images can be defined.
 
-## Download bowtie2 index files to remove contamination/host DNA
-3. Either download directly, or build your indexes to be filtered against from user supplied fasta files.
+## Reference databases
+3. Optionally, download newer or more appropriate reference files
+  ### bowtie2 index files to remove contamination/host DNA
+  Either download directly, or build your indexes to be filtered against from user supplied fasta files. [Recommended] download human genome indexes directly from: https://bowtie-bio.sourceforge.net/bowtie2/index.shtml
 
-[Recommended] download human genome indexes directly from: https://bowtie-bio.sourceforge.net/bowtie2/index.shtml
+  ### Kraken2 database
+  The default parameter with AMR++ is to download the minikraken2 (2020) database which covers Bacteria, Archaea, Viruses which will occur the first time you run the pipeline.
+  However you likely want a more updated version, and perhaps including fungi and plasmodium. They can be downloaded from here: https://benlangmead.github.io/aws-indexes/k2 and put in a location defined in the params.config file.
 
 ## Edit Slurm submission scripts
 4. An example slurm script defines these parameters:
-   -  workdir:     Location where processing will be performed (advice: use high speed location on your processing node i.e. /tmp)
+   - workdir:     Location where processing will be performed (advice: use high speed location on your processing node i.e. /tmp)
    - installdir:  Location of this github repo on your system
    - resultsdir:  Where do you want the main outputs to be transfered to (not the full working folders & outputs)
-   - run:         Name of the run for annotation and folder where the fastq files are
+   - run:         Name of the sequencing run for annotation and folder where the fastq files are
                   Default input read location is: `$workdir/$run/fastq`
 ---
 
