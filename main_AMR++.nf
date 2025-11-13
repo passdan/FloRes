@@ -96,8 +96,8 @@ include { FASTQ_QIIME2_WF } from './subworkflows/fastq_16S_qiime2.nf'
 include { BAM_RESISTOME_WF } from './subworkflows/bam_resistome.nf'
 
 
-taxlevel_ch = Channel.of("D","P","C","O","F","G","S")
-//taxlevel_ch = Channel.from(params.taxlevel.tokenize(','))
+//taxlevel_ch = Channel.of("D","P","C","O","F","G","S")
+taxlevel_ch = Channel.from(params.taxlevel.tokenize(','))
 
 workflow {
     if (params.pipeline == null || params.pipeline == "help") {

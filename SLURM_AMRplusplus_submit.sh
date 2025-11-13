@@ -28,31 +28,23 @@ module load singularity
 
 export NXF_OPTS="-Xms500M -Xmx2G"
 
-workdir="/scratch/b.dnp24ftx"
+workdir="/scratch/scw2312"
 installdir="/scratch/b.dnp24ftx/AMR-local-mod"
-run="farms"
+run="longshort"
 
 
 nextflow run ${installdir}/main_AMR++.nf \
 	-w "${workdir}/${run}/work" \
 	-c "${installdir}/config/singularity_slurm.config" \
-	--reads "${workdir}/${run}/fastq/C1*{R1,R2}.fastq.gz" \
-	--pipeline standard_AMR_wKraken \
+	--reads "${workdir}/${run}/fastq/*{_1,_2}.fq.gz" \
+	--pipeline standard_AMR_wKraken_and_Bracken \
 	--output "${workdir}/${run}/outputs" \
-	--snp N \
-	-with-report "${workdir}/${run}/${run}-${SLURM_JOB_ID}.html" \
-	-with-trace "${installdir}/logs/${run}-${SLURM_JOB_ID}.trace.txt" \
+	--snp Y \
+	-with-report "${workdir}/${run}/logs/${run}-${SLURM_JOB_ID}.html" \
+	-with-trace "${workdir}/${run}/logs/${run}-${SLURM_JOB_ID}.trace.txt" \
         -resume	
 
 #singularity exec docker://multiqc/multiqc:latest multiqc -o ${workdir}/${run}/${run}-outputs/Results/ ${workdir}/${run}/${run}-outputs
-
-####
-# Results copyout
-####
-#mkdir ${resultsdir}/${run}
-#rsync -r ${workdir}/${run}/${run}-outputs/HostRemoval/NonHostFastq ${resultsdir}/$run/
-#rsync -r ${workdir}/${run}/${run}-outputs/Results ${resultsdir}/$run/
-#rsync ${workdir}/${run}/${run}.html ${resultsdir}/$run/
 
 ## Delete all
 #rm -rf ${workdir}/${run}
