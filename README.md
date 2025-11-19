@@ -10,6 +10,7 @@ Notable changes to original pipeline:
 - Bespoke job submission and result caputre to fit our specific requirements
 - Added Bracken processing with new results
   - Note: Two new workflow parameters: 'standard_AMR_wKraken_and_bracken' and 'kraken_and_braken' (for already filtered/host removed input)
+- Coming soon: Longread data options (hifi/ONT). Testing underway
 
 Codebase is provided as-is and is hyper-locally modified for our infrastructure. If you are not concerned about bracken output or fastp & bowtie2 you probably want to work from the original AMR++ repository. 
 Note three branches to the github repository: 
