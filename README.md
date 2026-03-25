@@ -1,6 +1,6 @@
 Overview
 --------
-FloRes (Flow Resistome) is the Bangor & Compass Bioinformatics developed version of the [AMR++ core repository](https://github.com/Microbial-Ecology-Group/AMRplusplus) with notable additions and modifications, and parameterised for running on different compute systems (including Super Computing Wales, Verily Workbench and Google Compute Cloud).
+FloRes (Flow Resistome) is the Bangor University & Compass Bioinformatics developed version of the [AMR++ core repository](https://github.com/Microbial-Ecology-Group/AMRplusplus) with notable additions and modifications, and parameterised for running on different compute systems (including Super Computing Wales, Verily Workbench and Google Compute Cloud).
 
 Notable changes to original pipeline:
 - Additional integrated modules:
