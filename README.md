@@ -1,30 +1,28 @@
 Overview
 --------
-This repository is a modified version of the [AMR++ core repository](https://github.com/Microbial-Ecology-Group/AMRplusplus) with some notable modifications, changes, and parameterised for running on different compute systems (notably Super Computing Wales and Google Compute Cloud). For usage and tutorials refer to the core AMR++ documentation.
+FloRes (Flow Resistome) is the Bangor & Compass Bioinformatics developed version of the [AMR++ core repository](https://github.com/Microbial-Ecology-Group/AMRplusplus) with notable additions and modifications, and parameterised for running on different compute systems (including Super Computing Wales, Verily Workbench and Google Compute Cloud).
 
 Notable changes to original pipeline:
-- Integrated fastp & bowtie2 as QC and alignment packages
-  - Note: Default alignment for megares is kept as BWA consistent with original AMR++ and can be changed by parameter. Bowtie2 alignment against megaresDB has significant change on alignment rate.
-- Based upon modified docker image (passdan/amrplusplus-update)
-- Some code tweaks and fixes to work with singularity-slurm submission and repair nextflow channel bugs 
-- Bespoke job submission and result caputre to fit our specific requirements
-- Added Bracken processing with new results
-  - Note: Two new workflow parameters: 'standard_AMR_wKraken_and_bracken' and 'kraken_and_braken' (for already filtered/host removed input)
-- Coming soon: Longread data options (hifi/ONT). Testing underway
+- Additional integrated modules:
+  - fastp
+  - bowtie2 (host removal)
+  - minimap2 (for longread data (Pacbio hifi/ONT))
+  - bracken
+  - R scripts for normalisation of amr tables
+- Code changes and fixes
+  - Reduce I/O for large data inputs
+  - Work with new kraken2 taxonomy structure
+  - Apptainer-slurm submission
+  - Repair Nextflow channel bugs & version updates
 
-Codebase is provided as-is and is hyper-locally modified for our infrastructure. If you are not concerned about bracken output or fastp & bowtie2 you probably want to work from the original AMR++ repository. 
-Note three branches to the github repository: 
-- Master - Set up for slurm queing systems
-- GCP tuned - For deployment on Google Compute Cloud with the buckets and pipelining system
-- flat - For local running, no queuing system
-
+  Note: Default alignment for megares is kept as BWA consistent with original AMR++ and can be changed by parameter. Bowtie2 alignment against megaresDB results in significant change on alignment rate.
 ---
 
 # Preparing the install
 1. Download the github repository with git clone and the url above
 
-## Running with singularity
-2. The pipeline is designed and configured to run with singularity. If you are using this then no further installation preparation is required.
+## Running with apptainer/singularity
+2. The pipeline is configured to run with apptainer/singularity. If you are using this then no further installation preparation is required.
    You may choose to pre-build the singulariy images in advance if wanted. Note: config/singularity_slurm.conf is where singularity images can be defined.
 
 ## Reference databases
@@ -49,12 +47,11 @@ Note three branches to the github repository:
 
 Default pipeline is `standard_AMR_wKraken_and_bracken` which will run from raw fastqs to the endpoint. Alternatives are to use mid-process data, kraken only etc. by modifying the --pipeline parameter
 
-    Available pipelines:
+    Core pipelines:
         - demo: Run a demonstration of AMR++
-        - standard_AMR: Run the standard AMR++ pipeline
-        - fast_AMR: Run the fast AMR++ pipeline without host removal.
         - standard_AMR_wKraken: Run the standard AMR++ pipeline with Kraken
-        - **NEW** standard_AMR_wKraken_and_bracken: Run the standard AMR++ pipeline with Kraken AND Bracken
+        - standard_AMR_wKraken_and_bracken: Run the standard AMR++ pipeline with Kraken AND Bracken
+        - standard_hifi: Run the standard AMR++ pipeline for long-read (cleaned) data
 
     Available subworkflows:
         - eval_qc: Run FastQC analysis
