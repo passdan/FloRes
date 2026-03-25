@@ -63,21 +63,18 @@ process bwa_align {
     script:
     if( deduped == "N")
         """
-        ${BWA} mem ${indexfiles[0]} ${reads} -t ${threads} -R '@RG\\tID:${pair_id}\\tSM:${pair_id}' > ${pair_id}_alignment.sam
-        ${SAMTOOLS} view -@ ${threads} -S -b ${pair_id}_alignment.sam > ${pair_id}_alignment.bam
-        rm ${pair_id}_alignment.sam
-        ${SAMTOOLS} sort -@ ${threads} -n ${pair_id}_alignment.bam -o ${pair_id}_alignment_sorted.bam
-        rm ${pair_id}_alignment.bam
+        ${BWA} mem ${indexfiles[0]} ${reads} -t ${threads} -R '@RG\\tID:${pair_id}\\tSM:${pair_id}' | \
+        ${SAMTOOLS} sort -@ ${threads} -m 4G -o ${pair_id}_alignment_sorted.bam
         """
     else if( deduped == "Y")
         """
         ${BWA} mem ${indexfiles[0]} ${reads} -t ${threads} -R '@RG\\tID:${pair_id}\\tSM:${pair_id}' > ${pair_id}_alignment.sam
         ${SAMTOOLS} view -@ ${threads} -S -b ${pair_id}_alignment.sam > ${pair_id}_alignment.bam
         rm ${pair_id}_alignment.sam
-        ${SAMTOOLS} sort -@ ${threads} -n ${pair_id}_alignment.bam -o ${pair_id}_alignment_sorted.bam
+        ${SAMTOOLS} sort -@ ${threads} -m 3G -n ${pair_id}_alignment.bam -o ${pair_id}_alignment_sorted.bam
         rm ${pair_id}_alignment.bam
         ${SAMTOOLS} fixmate -@ ${threads} ${pair_id}_alignment_sorted.bam ${pair_id}_alignment_sorted_fix.bam
-        ${SAMTOOLS} sort -@ ${threads} ${pair_id}_alignment_sorted_fix.bam -o ${pair_id}_alignment_sorted_fix.sorted.bam
+        ${SAMTOOLS} sort -@ ${threads} -m 3G ${pair_id}_alignment_sorted_fix.bam -o ${pair_id}_alignment_sorted_fix.sorted.bam
         rm ${pair_id}_alignment_sorted_fix.bam
         ${SAMTOOLS} rmdup -S ${pair_id}_alignment_sorted_fix.sorted.bam ${pair_id}_alignment_dedup.bam
         rm ${pair_id}_alignment_sorted_fix.sorted.bam
@@ -110,12 +107,11 @@ process bwa_rm_contaminant_fq {
     path("${pair_id}.samtools.idxstats"), emit: host_rm_stats
     
     """
-    ${BWA} mem ${indexfiles[0]} ${reads[0]} ${reads[1]} -t ${threads} > ${pair_id}.host.sam
-    ${SAMTOOLS} view -bS ${pair_id}.host.sam | ${SAMTOOLS} sort -@ ${threads} -o ${pair_id}.host.sorted.bam
-    rm ${pair_id}.host.sam
+    ${BWA} mem ${indexfiles[0]} ${reads[0]} ${reads[1]} -t ${threads} | \
+    ${SAMTOOLS} sort -@ ${threads} -m 4G -o ${pair_id}.host.sorted.bam
     ${SAMTOOLS} index ${pair_id}.host.sorted.bam && ${SAMTOOLS} idxstats ${pair_id}.host.sorted.bam > ${pair_id}.samtools.idxstats
     ${SAMTOOLS} view -h -f 12 -b ${pair_id}.host.sorted.bam -o ${pair_id}.host.sorted.removed.bam
-    ${SAMTOOLS} sort -n -@ ${threads} ${pair_id}.host.sorted.removed.bam -o ${pair_id}.host.resorted.removed.bam
+    ${SAMTOOLS} sort -n -@ ${threads} -m 3G ${pair_id}.host.sorted.removed.bam -o ${pair_id}.host.resorted.removed.bam
     ${SAMTOOLS}  \
        fastq -@ ${threads} -c 6  \
       ${pair_id}.host.resorted.removed.bam \

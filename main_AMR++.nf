@@ -13,6 +13,7 @@ log.info """\
  A M R + +    N F   P I P E L I N E
  ===================================
  reads        : ${params.reads}
+ bams         : ${params.bam_files}
  output       : ${params.output}
  """
 
@@ -54,6 +55,7 @@ def helpMessage = """\
         - conda_slurm: Uses "mamba" and adds control over slurm job submission.
         - singularity: Uses a "singularity" image container.
         - singularity_slurm: Singularity image and adds control over slurm job submission.
+        - apptainer_slurm: New clone of singularity - all parameters duplicated from above.
         - docker: Uses a docker image container.
 
     To include SNP analysis, add `--snp Y` to your command.
@@ -63,14 +65,7 @@ def helpMessage = """\
 
     """
 
-Channel
-    .fromFilePairs( params.reads , size: (params.reads =~ /\{/) ? 2 : 1)
-    .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
-    .map { id, files -> 
-        def modified_baseName = id.split('\\.')[0]
-        tuple(modified_baseName, files)
-    }
-    .set {fastq_files}
+
 
 // Load null pipeline
 params.pipeline = null
@@ -79,6 +74,7 @@ params.pipeline = null
 include { STANDARD_AMRplusplus } from './subworkflows/AMR++_standard.nf' 
 include { FAST_AMRplusplus } from './subworkflows/AMR++_fast.nf'
 include { STANDARD_AMRplusplus_wKraken } from './subworkflows/AMR++_standard_wKraken.nf'
+include { STANDARD_full_hifi } from './subworkflows/AMR++_full_hifi.nf'
 include { STANDARD_AMRplusplus_wKrak_and_Brack } from './subworkflows/AMR++_standard_wKrak_and_Brack.nf'
 
 // Load subworkflows
@@ -99,7 +95,35 @@ include { BAM_RESISTOME_WF } from './subworkflows/bam_resistome.nf'
 //taxlevel_ch = Channel.of("D","P","C","O","F","G","S")
 taxlevel_ch = Channel.from(params.taxlevel.tokenize(','))
 
+if ( params.reads != null ){
+	Channel
+	    .fromFilePairs( params.reads , size: (params.reads =~ /\{/) ? 2 : 1)
+	    .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
+	    .map { id, files -> 
+	        def modified_baseName = id.split('\\.')[0]
+        	tuple(modified_baseName, files)
+	    }
+	    .set {fastq_files}
+}
+if ( params.bam_files != null ){
+	Channel
+       	    .fromPath(params.bam_files)
+            .ifEmpty { exit 1, "bam files could not be found: ${params.bam_files}" }
+       	    .map { file ->
+            def modified_baseName = file.baseName.split('\\.')[0]
+       	      tuple(modified_baseName, file)
+                }
+       	    .set {bam_files_ch}
+} 
+if (params.reads != null | params.bam_files != null) {
+	println "You didn't provide any fastq or bam files as input - exiting"
+}
+
+
+
 workflow {
+
+
     if (params.pipeline == null || params.pipeline == "help") {
 
         println helpMessage
@@ -126,6 +150,11 @@ workflow {
     else if(params.pipeline == "standard_AMR") {
 
         STANDARD_AMRplusplus(fastq_files,params.host, params.amr, params.annotation)
+        
+    } 
+    else if(params.pipeline == "standard_hifi") {
+
+        STANDARD_full_hifi(bam_files_ch,params.host, params.amr, params.annotation, params.kraken_db, taxlevel_ch, params.split)
         
     } 
     else if(params.pipeline == "fast_AMR") {

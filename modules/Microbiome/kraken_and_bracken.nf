@@ -54,6 +54,38 @@ process runkraken {
      """
 }
 
+process runkrakenInterleaved {
+    tag { sample_id }
+    label "microbiome"
+
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 3
+
+    publishDir "${params.output}/MicrobiomeAnalysis", mode: 'copy',
+        saveAs: { filename ->
+            if(filename.indexOf(".kraken.raw") > 0) "Kraken/standard/$filename"
+            else if(filename.indexOf(".kraken.report") > 0) "Kraken/standard_report/$filename"
+            else {}
+        }
+
+    input:
+       tuple val(sample_id), path(reads)
+       path(krakendb)
+
+
+   output:
+      tuple val(sample_id), path("${sample_id}.kraken.raw"), emit: kraken_raw
+      path("${sample_id}.kraken.report"), emit: kraken_report
+      tuple val(sample_id), path("${sample_id}.kraken.report"), emit: bracken_input
+      tuple val(sample_id), path("${sample_id}_kraken2.krona"), emit: krakenkrona
+
+     """
+     ${KRAKEN2} --db ${krakendb} --fastq-input ${reads} --threads ${threads} --report ${sample_id}.kraken.report > ${sample_id}.kraken.raw
+
+     cut -f 2,3  ${sample_id}.kraken.raw > ${sample_id}_kraken2.krona
+     """
+}
+
 process krakenresults {
     tag { }
     label "python"
@@ -71,7 +103,7 @@ process krakenresults {
 
 
     """
-    ${PYTHON3} $baseDir/bin/kraken2_long_to_wide.py -i ${kraken_reports} -o kraken_analytic_matrix.csv
+    ${PYTHON3} $baseDir/bin/kraken2_long_to_wide_update.py -i ${kraken_reports} -o kraken_analytic_matrix.csv
     """
 }
 
@@ -119,7 +151,7 @@ process brackenresults {
 process kronadb {
     label "microbiome"
     output:
-        file("krona_db/taxonomy.tab") optional true into krona_db_ch // is this a value ch?
+       file("krona_db/taxonomy.tab") optional true into krona_db_ch // is this a value ch?
 
     when: 
         !params.skip_krona

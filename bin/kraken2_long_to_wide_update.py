@@ -25,16 +25,16 @@ taxa_levels = {
 
 taxa_level_names = {
     0: 'Root1',
-    2: 'Root2',
-    3: 'Root3',
-    4: 'Kingdom',
-    5: 'Phylum',
-    6: 'Class',
-    7: 'Order',
-    8: 'Family',
-    9: 'Genus',
-    10: 'Species',
-    11: 'Unclassified'
+    1: 'Root2',
+    2: 'Root3',
+    3: 'Kingdom',
+    4: 'Phylum',
+    5: 'Class',
+    6: 'Order',
+    7: 'Family',
+    8: 'Genus',
+    9: 'Species',
+    10: 'Unclassified'
 }
 
 
@@ -74,7 +74,7 @@ def kraken2_load_analytic_data(file_name_list):
         unclassifieds.setdefault(sample_id, [0, 0, 0])
         with open(file, 'r') as f:
             data = f.read().split('\n')
-            taxon_list = ['NA'] * 10
+            taxon_list = ['NA'] * 11
             previous_taxon_level = 0
             for line in data:
                 if not line:
@@ -91,17 +91,27 @@ def kraken2_load_analytic_data(file_name_list):
                 elif node_level == 'R':
                     unclassifieds[sample_id][1] += int(entries[1])
                     continue
+
                 if len(node_level) > 1:
-                    if node_level[0] in ('U', 'R'):
+                    if node_level in ('R1', 'R2', 'R3'):
+                        #print(node_level, "R")
+                        parent_node_level = node_level
+                    elif node_level[0] in ('U', 'R'):
+                        #print(node_level, "U or R")
                         continue
-                    parent_node_level = node_level[0]
+                    else:
+                        #print(node_level, "Other")
+                        parent_node_level = node_level[0]
                 else:
                     parent_node_level = node_level
+
                 this_taxon_level = taxa_levels[parent_node_level]
-                if len(node_level) == 1:
-                    taxon_list[this_taxon_level] = node_name
+                #print("-----------This taxon level:", this_taxon_level, "|", parent_node_level)
+
+                #if len(node_level) == 1:
+                taxon_list[this_taxon_level] = node_name
                 if this_taxon_level < previous_taxon_level:
-                    taxon_list[this_taxon_level + 1:] = ['NA'] * (9 - this_taxon_level)
+                    taxon_list[this_taxon_level + 1:] = ['NA'] * (10 - this_taxon_level)
                 previous_taxon_level = this_taxon_level
                 if node_count == 0:
                     continue
