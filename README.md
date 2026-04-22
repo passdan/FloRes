@@ -21,12 +21,12 @@ Notable changes to original pipeline:
 # Preparing the install
 1. Download the github repository with git clone and the url above
 
-## Running with apptainer/singularity
-2. The pipeline is configured to run with apptainer/singularity. If you are using this then no further installation preparation is required.
-   You may choose to pre-build the singulariy images in advance if wanted. Note: config/singularity_slurm.conf is where singularity images can be defined.
+## Containers
+2. The pipeline is configured to run either with apptainer/singularity locally with automatic container download, or with docker if using google-batch remotely. You may choose to pre-build the singulariy images in advance if wanted (containers defined in conf/ folder)
+Note: If you are using Workbench/batch then you must pre-build the docker containers locally and upload to the container repository with the google CLI sdk.
 
 ## Reference databases
-3. Optionally, download newer or more appropriate reference files
+3. Default downloads are performed on first run but you will likely want to download newer or more appropriate reference files
   ### bowtie2 index files to remove contamination/host DNA
   Either download directly, or build your indexes to be filtered against from user supplied fasta files. [Recommended] download human genome indexes directly from: https://bowtie-bio.sourceforge.net/bowtie2/index.shtml
 
@@ -34,7 +34,7 @@ Notable changes to original pipeline:
   The default parameter with AMR++ is to download the minikraken2 (2020) database which covers Bacteria, Archaea, Viruses which will occur the first time you run the pipeline.
   However you likely want a more updated version, and perhaps including fungi and plasmodium. They can be downloaded from here: https://benlangmead.github.io/aws-indexes/k2 and put in a location defined in the params.config file.
 
-## Edit Slurm submission scripts
+## Slurm submission scripts if required
 4. An example slurm script defines these parameters:
    - workdir:     Location where processing will be performed (advice: use high speed location on your processing node i.e. /tmp)
    - installdir:  Location of this github repo on your system
@@ -63,10 +63,5 @@ Default pipeline is `standard_AMR_wKraken_and_bracken` which will run from raw f
         - **NEW** kraken_and_bracken: Perform Kraken and Bracken analysis
         - qiime2: Perform QIIME 2 analysis
         - bam_resistome: Perform resistome analysis on BAM files
-
-Submit as a slurm & singularity job with:
-```
-sbatch AMRplusplus_full.sh
-```
 
 You're finished!
