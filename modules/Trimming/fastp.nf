@@ -46,7 +46,7 @@ process runqc {
             --out2 ${sample_id}.2P.fastq.gz \
             --json ${sample_id}.fastp.json \
             --html ${sample_id}.fastp.html \
-            --thread ${threads} \
+            --thread ${task.cpus} \
             --detect_adapter_for_pe \
   	    --trim_poly_g \
             --cut_right \

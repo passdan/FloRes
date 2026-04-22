@@ -24,21 +24,10 @@ def helpMessage = """\
 
     Available pipelines:
         - demo: Run a demonstration of AMR++
-        - standard_AMR: Run the standard AMR++ pipeline
+        - standard_AMR: Run the standard AMR++ pipeline (without kraken)
         - fast_AMR: Run the fast AMR++ pipeline without host removal.
         - standard_AMR_wKraken: Run the standard AMR++ pipeline with Kraken
         - standard_AMR_wKraken_and_Bracken: Run the standard AMR++ pipeline with Kraken AND Bracken
-
-    Available subworkflows:
-        - eval_qc: Run FastQC analysis
-        - trim_qc: Run trimming and quality control
-        - rm_host: Remove host reads
-        - resistome: Perform resistome analysis
-        - align: Perform alignment to MEGARes database
-        - kraken: Perform Kraken analysis
-        - kraken_and_bracken: Perform Kraken and Bracken analysis
-        - qiime2: Perform QIIME 2 analysis
-        - bam_resistome: Perform resistome analysis on BAM files
 
     To run a specific pipeline, use the "--pipeline" option followed by the pipeline name:
         nextflow run main_AMR++.nf --pipeline <pipeline_name> [other_options]
@@ -46,9 +35,7 @@ def helpMessage = """\
     To analyze your samples or otherwise change how AMR++ runs, modify the "params.config" file 
     or add more parameters to the command line.
 
-    Finally, consider your computing environment and modify the "-profile" option. By default,
-    AMR++ assumes all software dependencies are in your \$PATH, as in the "local" profile. Here are 
-    the other options:
+    Modify the "-profile" with options:
         - local: Assumes all sofware is already in your \$PATH
         - local_slurm: Local installation and adds control over slurm job submission.
         - conda: Uses "mamba" to install a conda environment. 
@@ -57,15 +44,12 @@ def helpMessage = """\
         - singularity_slurm: Singularity image and adds control over slurm job submission.
         - apptainer_slurm: New clone of singularity - all parameters duplicated from above.
         - docker: Uses a docker image container.
-
-    To include SNP analysis, add `--snp Y` to your command.
+        - workbench: Verily Workbench platform with Google Batch submission
     
     To include deduplicated count analysis, add `--deduped Y` to your command. 
     Please be aware that adding deduplicated counts will significantly increase run time and temp file storage requirements.
 
     """
-
-
 
 // Load null pipeline
 params.pipeline = null

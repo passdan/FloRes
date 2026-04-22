@@ -15,6 +15,7 @@ process dlkraken {
         path("minikraken_8GB_20200312/")
 
     """
+        echo "Attempting to download minikraken 8GB dataset"
         wget ftp://ftp.ccb.jhu.edu/pub/data/kraken2_dbs/minikraken_8GB_202003.tgz
         tar -xvzf minikraken_8GB_202003.tgz
 
@@ -48,7 +49,7 @@ process runkraken {
       tuple val(sample_id), path("${sample_id}_kraken2.krona"), emit: krakenkrona
 
      """
-     ${KRAKEN2} --db ${krakendb} --paired ${reads[0]} ${reads[1]} --threads ${threads} --report ${sample_id}.kraken.report > ${sample_id}.kraken.raw
+     ${KRAKEN2} --db ${krakendb} --paired ${reads[0]} ${reads[1]} --threads ${task.cpus} --report ${sample_id}.kraken.report > ${sample_id}.kraken.raw
 
      cut -f 2,3  ${sample_id}.kraken.raw > ${sample_id}_kraken2.krona
      """
@@ -80,7 +81,7 @@ process runkrakenInterleaved {
       tuple val(sample_id), path("${sample_id}_kraken2.krona"), emit: krakenkrona
 
      """
-     ${KRAKEN2} --db ${krakendb} --fastq-input ${reads} --threads ${threads} --report ${sample_id}.kraken.report > ${sample_id}.kraken.raw
+     ${KRAKEN2} --db ${krakendb} --fastq-input ${reads} --threads ${task.cpus} --report ${sample_id}.kraken.report > ${sample_id}.kraken.raw
 
      cut -f 2,3  ${sample_id}.kraken.raw > ${sample_id}_kraken2.krona
      """
@@ -120,9 +121,9 @@ process runbracken {
     """
     bracken \
    	-d ${krakendb} \
-       	-r ${params.readlen} \
+    -r ${params.readlen} \
 	-i ${kraken_report} \
-       	-l $level \
+    -l $level \
 	-o ${sample_id}_${level}.bracken.tsv
     """
 }

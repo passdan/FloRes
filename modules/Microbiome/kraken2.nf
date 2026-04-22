@@ -22,8 +22,7 @@ process dlkraken {
     """
 }
 
-
-process runkraken {
+process runkraken {:
     tag { sample_id }
     label "microbiome"
 
@@ -55,8 +54,8 @@ process runkraken {
 
 
      """
-     ${KRAKEN2} --db ${krakendb} --paired ${reads[0]} ${reads[1]} --threads ${threads} --report ${sample_id}.kraken.report > ${sample_id}.kraken.raw
-     ${KRAKEN2} --db ${krakendb} --confidence 1 --paired ${reads[0]} ${reads[1]} --threads ${threads} --report ${sample_id}.kraken.filtered.report > ${sample_id}.kraken.filtered.raw
+     ${KRAKEN2} --db ${krakendb} --paired ${reads[0]} ${reads[1]} --threads ${task.cpus} --report ${sample_id}.kraken.report > ${sample_id}.kraken.raw
+     ${KRAKEN2} --db ${krakendb} --confidence 1 --paired ${reads[0]} ${reads[1]} --threads ${task.cpus} --report ${sample_id}.kraken.filtered.report > ${sample_id}.kraken.filtered.raw
 
     cut -f 2,3  ${sample_id}.kraken.raw > ${sample_id}_kraken2.krona
     cut -f 2,3  ${sample_id}.kraken.filtered.raw > ${sample_id}_kraken2_filtered.krona
