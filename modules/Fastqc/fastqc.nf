@@ -51,7 +51,8 @@ process multiqc {
     script:
     """
     cp $config/* .
-    multiqc -v data* --interactive -f --cl-config "max_table_rows: 3000"
-    mv multiqc_data/multiqc_general_stats.txt .
+    multiqc -v data* --interactive -f --cl-config "max_table_rows: 3000" --outdir multiqc_data --filename multiqc_report.html
+    mv multiqc_data/multiqc_report_data/multiqc_general_stats.txt .
+    mv multiqc_data/multiqc_report.html .
     """
 }
