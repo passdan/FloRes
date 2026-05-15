@@ -19,9 +19,7 @@ workflow FASTQ_RM_HOST_WF {
             reference_index_files = bowtie2_index.out
         } else {
             reference_index_files = Channel
-               .fromPath(Paths.get(params.host_index))
-               .map { file(it.toString()) }
-               .filter { file(it).exists() }
+               .fromPath(params.host_index)
                .toList()
                .map { files ->
                    if (files.size() < 6) {

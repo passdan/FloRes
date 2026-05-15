@@ -40,7 +40,7 @@ process build_dependencies {
     #mv rarefaction ../
     #cd ../
     #rm -rf rarefactionanalyzer
-    cp $baseDir/bin/rarefaction . 
+    cp /opt/amrplusplus/bin/rarefaction . 
 
 
     #git clone https://github.com/cdeanj/resistomeanalyzer.git
@@ -50,7 +50,7 @@ process build_dependencies {
     #mv resistome ../
     #cd ../
     #rm -rf resistomeanalyzer
-    cp $baseDir/bin/resistome .
+    cp /opt/amrplusplus/bin/resistome .
 
     git clone https://github.com/Isabella136/AmrPlusPlus_SNP.git
     chmod -R 777 AmrPlusPlus_SNP/
@@ -119,7 +119,7 @@ process resistomeresults {
         path("${prefix}_analytic_matrix.csv"), emit: snp_count_matrix, optional: true
 
     """
-    ${PYTHON3} $baseDir/bin/amr_long_to_wide.py -i ${resistomes} -o ${prefix}_analytic_matrix.csv
+    ${PYTHON3} /opt/amrplusplus/bin/amr_long_to_wide.py -i ${resistomes} -o ${prefix}_analytic_matrix.csv
     """
 }
 
@@ -189,7 +189,7 @@ process plotrarefaction {
     """
     mkdir data/
     mv *.tsv data/
-    python $baseDir/bin/rfplot.py --dir ./data --nd --s --sd .
+    python /opt/amrplusplus/bin/rfplot.py --dir ./data --nd --s --sd .
     """
 }
 
@@ -219,7 +219,7 @@ process runsnp {
         path("${sample_id}.${prefix}_SNPs${sample_id}/*")
 
     """
-    cp -r $baseDir/bin/AmrPlusPlus_SNP/* .
+    cp -r /opt/amrplusplus/bin/AmrPlusPlus_SNP/* .
 
     # change name to stay consistent with count matrix name, but only if the names don't match
     if [ "${bam}" != "${sample_id}.bam" ]; then
@@ -257,7 +257,7 @@ process snpresults {
 
     """
 
-    ${PYTHON3} $baseDir/bin/snp_long_to_wide.py -i ${snp_counts} -o SNPconfirmed_${prefix}_analytic_matrix.csv
+    ${PYTHON3} /opt/amrplusplus/bin/snp_long_to_wide.py -i ${snp_counts} -o SNPconfirmed_${prefix}_analytic_matrix.csv
 
     """
 }

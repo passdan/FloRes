@@ -132,5 +132,4 @@ fi
 now=$(date +"%Y-%m-%d--%H-%M")
 
 # Run nextflow with Google Batch profile
-#nextflow -c "${NEXTFLOW_CONFIG}" run main_AMR++.nf --pipeline "standard_AMR_wKraken_and_Bracken" -profile "${NEXTFLOW_PROFILE}" -with-trace "trace-${now}.txt"   -resume -bg
-nextflow run main_AMR++.nf --pipeline "standard_AMR_wKraken_and_Bracken" -with-trace "trace-${now}.txt"   
+nextflow run main_AMR++.nf -profile "${NEXTFLOW_PROFILE}" -c "${NEXTFLOW_CONFIG}" --pipeline "standard_AMR_wKraken_and_Bracken" -with-trace "trace-${now}.txt"

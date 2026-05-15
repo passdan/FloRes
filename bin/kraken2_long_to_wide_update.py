@@ -13,28 +13,30 @@ taxa_levels = {
     'R1':0,
     'R2':1,
     'R3':2,
-    'K': 3,
-    'P': 4,
-    'C': 5,
-    'O': 6,
-    'F': 7,
-    'G': 8,
-    'S': 9,
-    'U': 10
+    'D': 3,
+    'K': 4,
+    'P': 5,
+    'C': 6,
+    'O': 7,
+    'F': 8,
+    'G': 9,
+    'S': 10,
+    'U': 11
 }
 
 taxa_level_names = {
     0: 'Root1',
     1: 'Root2',
     2: 'Root3',
-    3: 'Kingdom',
-    4: 'Phylum',
-    5: 'Class',
-    6: 'Order',
-    7: 'Family',
-    8: 'Genus',
-    9: 'Species',
-    10: 'Unclassified'
+    3: 'Domain',
+    4: 'Kingdom',
+    5: 'Phylum',
+    6: 'Class',
+    7: 'Order',
+    8: 'Family',
+    9: 'Genus',
+    10: 'Species',
+    11: 'Unclassified'
 }
 
 

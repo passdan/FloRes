@@ -78,7 +78,7 @@ process krakenresults {
         path("kraken_analytic_matrix.csv")
 
     """
-    ${PYTHON3} $baseDir/bin/kraken2_long_to_wide.py -i ${kraken_reports} -o kraken_analytic_matrix.csv
+    ${PYTHON3} /opt/amrplusplus/bin/kraken2_long_to_wide.py -i ${kraken_reports} -o kraken_analytic_matrix.csv
     """
 }
 
