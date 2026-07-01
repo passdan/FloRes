@@ -1,23 +1,23 @@
 pipeline: "demo"
-reads: "gs://nf-vwb-dev-beaming-hazelnut-6046/data/raw/*_R{1,2}.fastq.gz"
+reads: "gs://${GCS_BUCKET}/data/raw/*_R{1,2}.fastq.gz"
 bam_files: null
 split: ""
 
-host: "gs://nf-vwb-dev-beaming-hazelnut-6046/data/host/chr21.fasta.gz"
+host: "gs://${GCS_BUCKET}/data/host/chr21.fasta.gz"
 host_index: null
-kraken_db: "gs://nf-vwb-dev-beaming-hazelnut-6046/data/kraken_db/minikraken_8GB_20200312"
+kraken_db: "gs://${GCS_BUCKET}/data/kraken_db/minikraken_8GB_20200312"
 amr_index: null
-amr: "gs://nf-vwb-dev-beaming-hazelnut-6046/data/amr/megares_database_v3.fasta"
-annotation: "gs://nf-vwb-dev-beaming-hazelnut-6046/data/amr/megares_annotations_v3.00.csv"
+amr: "gs://${GCS_BUCKET}/data/amr/megares_database_v3.fasta"
+annotation: "gs://${GCS_BUCKET}/data/amr/megares_annotations_v3.00.csv"
 
-output: "gs://nf-vwb-dev-beaming-hazelnut-6046/results"
+output: "gs://${GCS_BUCKET}/results"
 
 snp: "N"
 deduped: "N"
 prefix: "AMR"
 threads: 8
 
-adapters: "gs://nf-vwb-dev-beaming-hazelnut-6046/data/adapters/nextera.fa"
+adapters: "gs://${GCS_BUCKET}/data/adapters/nextera.fa"
 leading: 3
 trailing: 3
 slidingwindow: "4:15"
@@ -29,11 +29,11 @@ max: 100
 skip: 5
 samples: 1
 
-multiqc: "gs://nf-vwb-dev-beaming-hazelnut-6046/data/multiqc"
+multiqc: "gs://${GCS_BUCKET}/data/multiqc"
 p_trim_left_f: 25
 p_trim_left_r: 26
 p_trunc_len_f: 225
 p_trunc_len_r: 220
 
 taxlevel: "R1,R2,R3,K,P,C,O,F,G,S"
-dada2_db: "gs://nf-vwb-dev-beaming-hazelnut-6046/data/qiime/gg-13-8-99-515-806-nb-classifier.qza"
+dada2_db: "gs://${GCS_BUCKET}/data/qiime/gg-13-8-99-515-806-nb-classifier.qza"
