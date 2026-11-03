@@ -109,11 +109,13 @@ process bowtie2_rm_contaminant_fq {
     """
     
     ${BOWTIE2} -x ${indexfiles[0].simpleName} -1 ${reads[0]} -2 ${reads[1]} --threads ${task.cpus} |\
-        ${SAMTOOLS} sort -@ ${task.cpus} -m 4G -o ${pair_id}.host.sorted.bam
+        ${SAMTOOLS} sort -@ ${task.cpus} -m 6G -o ${pair_id}.host.sorted.bam
     
     ${SAMTOOLS} index ${pair_id}.host.sorted.bam && ${SAMTOOLS} idxstats ${pair_id}.host.sorted.bam > ${pair_id}.samtools.idxstats
     ${SAMTOOLS} view -h -f 12 -b ${pair_id}.host.sorted.bam -o ${pair_id}.host.sorted.removed.bam
-    ${SAMTOOLS} sort -@ ${task.cpus} -m 4G ${pair_id}.host.sorted.removed.bam -o ${pair_id}.host.resorted.removed.bam
+    rm ${pair_id}.host.sorted.bam 
+    ${SAMTOOLS} sort -@ ${task.cpus} -m 6G ${pair_id}.host.sorted.removed.bam -o ${pair_id}.host.resorted.removed.bam
+    rm ${pair_id}.host.sorted.removed.bam
 
     ${SAMTOOLS} fastq -@ ${task.cpus} -c 6  \
       ${pair_id}.host.resorted.removed.bam \
@@ -145,6 +147,6 @@ process HostRemovalStats {
         path("host.removal.stats"), emit: combo_host_rm_stats
 
     """
-    ${PYTHON3} /opt/amrplusplus/bin/samtools_idxstats.py -i ${host_rm_stats} -o host.removal.stats
+    ${PYTHON3} ${baseDir}/bin/samtools_idxstats.py -i ${host_rm_stats} -o host.removal.stats
     """
 }

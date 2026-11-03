@@ -1,7 +1,9 @@
 data/amr/*bt2
 data/kraken_db/
+data/kraken_pfp
 envs/amrplusplus-update.sif
 logs/
+scripts/logs
 .nextflow*
 nextflow-24.10.9-dist
 trace-*.txt

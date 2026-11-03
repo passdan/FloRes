@@ -32,7 +32,7 @@ workflow FASTQ_RM_HOST_WF {
          }    
 
         bowtie2_rm_contaminant_fq(reference_index_files, read_pairs_ch )
-        HostRemovalStats(bowtie2_rm_contaminant_fq.out.host_rm_stats.collect())
+        //HostRemovalStats(bowtie2_rm_contaminant_fq.out.host_rm_stats.collect())
     emit:
         nonhost_reads = bowtie2_rm_contaminant_fq.out.nonhost_reads  
 }

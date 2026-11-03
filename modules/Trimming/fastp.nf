@@ -24,13 +24,6 @@ process runqc {
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 3
 
-    publishDir "${params.output}/QC_trimming", mode: 'copy', pattern: '*.fastq.gz',
-        saveAs: { filename ->
-            if(filename.indexOf("P.fastq.gz") > 0) "Paired/$filename"
-            else if(filename.indexOf("U.fastq.gz") > 0) "Unpaired/$filename"
-            else {}
-        }
-
     input:
         tuple val(sample_id), path(reads)  
 

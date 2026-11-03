@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=scwf00056_r_silvester_54 
-#SBATCH --partition=compute       # the requested queue
+#SBATCH --partition=htc_rome       # the requested queue
 #SBATCH --nodes=1              # number of nodes to use
 #SBATCH --tasks-per-node=1
 #SBATCH --cpus-per-task=4      #
@@ -24,16 +24,16 @@ module load Java/21
 
 export NXF_OPTS="-Xms500M -Xmx2G"
 
-workdir="/scratch/SCWF00056/legacydata/scw2028"
-installdir="/scratch/SCWF00056/legacydata/b.dnp24ftx/AMR-local-mod"
-run="KLU"
+workdir="/shared/scratch/SCWF00056/shared/data/ku_leuven"
+installdir="/scratch/SCWF00056/legacydata/b.dnp24ftx/FloRes"
+run="KLU_combined"
 
 
-./nextflow-24.10.9-dist run ${installdir}/main_AMR++.nf \
-	-w "${workdir}/${run}/work" \
+./nextflow-24.10.9-dist run ${installdir}/main.nf \
+	-w "${workdir}/work" \
 	-c "${installdir}/config/apptainer_slurm.config" \
 	--reads "${workdir}/${run}/outputs/HostRemoval/NonHostFastq/*{R1,R2}.f*q.gz" \
-	--pipeline resistome  \
+	--pipeline kraken_and_bracken  \
 	--output "${workdir}/${run}/Foutputs" \
 	--snp Y \
 	-with-report "${workdir}/${run}/logs/${run}-${SLURM_JOB_ID}.html" \

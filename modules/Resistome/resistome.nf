@@ -119,7 +119,7 @@ process resistomeresults {
         path("${prefix}_analytic_matrix.csv"), emit: snp_count_matrix, optional: true
 
     """
-    ${PYTHON3} /opt/amrplusplus/bin/amr_long_to_wide.py -i ${resistomes} -o ${prefix}_analytic_matrix.csv
+    ${PYTHON3} ${baseDir}/bin/amr_long_to_wide.py -i ${resistomes} -o ${prefix}_analytic_matrix.csv
     """
 }
 
@@ -189,7 +189,7 @@ process plotrarefaction {
     """
     mkdir data/
     mv *.tsv data/
-    python /opt/amrplusplus/bin/rfplot.py --dir ./data --nd --s --sd .
+    python ${baseDir}/bin/rfplot.py --dir ./data --nd --s --sd .
     """
 }
 
@@ -219,7 +219,7 @@ process runsnp {
         path("${sample_id}.${prefix}_SNPs${sample_id}/*")
 
     """
-    cp -r /opt/amrplusplus/bin/AmrPlusPlus_SNP/* .
+    cp -r ${baseDir}/bin/AmrPlusPlus_SNP/* .
 
     # change name to stay consistent with count matrix name, but only if the names don't match
     if [ "${bam}" != "${sample_id}.bam" ]; then
@@ -257,7 +257,7 @@ process snpresults {
 
     """
 
-    ${PYTHON3} /opt/amrplusplus/bin/snp_long_to_wide.py -i ${snp_counts} -o SNPconfirmed_${prefix}_analytic_matrix.csv
+    ${PYTHON3} ${baseDir}/bin/snp_long_to_wide.py -i ${snp_counts} -o SNPconfirmed_${prefix}_analytic_matrix.csv
 
     """
 }
