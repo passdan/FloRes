@@ -1,64 +1,30 @@
-// Resistome
+// Resistome quantification, SNP confirmation, rarefaction and normalisation.
 
-if( params.annotation ) {
-    annotation = file(params.annotation)
-    if( !annotation.exists() ) return annotation_error(annotation)
-}
-
-threshold = params.threshold
-threads = params.threads
-
-
-min = params.min
-max = params.max
-skip = params.skip
-samples = params.samples
-
-deduped = params.deduped
-prefix = params.prefix
+include { as_bool } from "${projectDir}/modules/functions.nf"
 
 process build_dependencies {
-    tag { dl_dependencies }
+    tag "Fetching resistome dependencies"
     label "python"
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 3
 
-    publishDir "${baseDir}/bin/", mode: "copy"
+    publishDir "${projectDir}/bin/", mode: "copy"
 
     output:
         path("rarefaction"), emit: rarefactionanalyzer
         path("resistome"), emit: resistomeanalyzer
         path("AmrPlusPlus_SNP/*"), emit: amrsnp
 
+    script:
     """
-    # Uncomment these sections once the v2 rarefactionanalyzer and resistomeanalyzer repositories are updated, remove cp lines
-    #git clone https://github.com/cdeanj/rarefactionanalyzer.git
-    #cd rarefactionanalyzer
-    #make
-    #chmod 777 rarefaction
-    #mv rarefaction ../
-    #cd ../
-    #rm -rf rarefactionanalyzer
-    cp /opt/amrplusplus/bin/rarefaction . 
-
-
-    #git clone https://github.com/cdeanj/resistomeanalyzer.git
-    #cd resistomeanalyzer
-    #make
-    #chmod 777 resistome
-    #mv resistome ../
-    #cd ../
-    #rm -rf resistomeanalyzer
+    cp /opt/amrplusplus/bin/rarefaction .
     cp /opt/amrplusplus/bin/resistome .
 
     git clone https://github.com/Isabella136/AmrPlusPlus_SNP.git
     chmod -R 777 AmrPlusPlus_SNP/
     """
-
-
 }
-
 
 process runresistome {
     tag { sample_id }
@@ -67,36 +33,34 @@ process runresistome {
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 3
 
-    publishDir "${params.output}/ResistomeAnalysis", mode: "copy",
-        saveAs: { filename ->
-            if(filename.indexOf(".tsv") > 0) "ResistomeCounts/$filename"
-            else {}
-        }
+    publishDir "${params.output}/ResistomeAnalysis/ResistomeCounts", mode: "copy",
+        saveAs: { filename -> filename.endsWith(".tsv") ? filename : null }
 
     input:
         tuple val(sample_id), path(bam)
         path(amr)
         path(annotation)
         path(resistome)
+        val(prefix)
 
     output:
         tuple val(sample_id), path("${sample_id}*.tsv"), emit: resistome_tsv
         path("${sample_id}.${prefix}.gene.tsv"), emit: resistome_counts
 
-    
-    
+    script:
     """
-    samtools view -h ${bam} > ${sample_id}.sam
-    
-    $resistome -ref_fp ${amr} \
-      -annot_fp ${annotation} \
-      -sam_fp ${sample_id}.sam \
-      -gene_fp ${sample_id}.${prefix}.gene.tsv \
-      -group_fp ${sample_id}.${prefix}.group.tsv \
-      -mech_fp ${sample_id}.${prefix}.mechanism.tsv \
-      -class_fp ${sample_id}.${prefix}.class.tsv \
-      -type_fp ${sample_id}.${prefix}.type.tsv \
-      -t ${threshold}
+    \${SAMTOOLS:-samtools} view -h ${bam} > ${sample_id}.sam
+
+    chmod +x ${resistome}
+    ./${resistome} -ref_fp ${amr} \\
+        -annot_fp ${annotation} \\
+        -sam_fp ${sample_id}.sam \\
+        -gene_fp ${sample_id}.${prefix}.gene.tsv \\
+        -group_fp ${sample_id}.${prefix}.group.tsv \\
+        -mech_fp ${sample_id}.${prefix}.mechanism.tsv \\
+        -class_fp ${sample_id}.${prefix}.class.tsv \\
+        -type_fp ${sample_id}.${prefix}.type.tsv \\
+        -t ${params.threshold}
 
     rm ${sample_id}.sam
     """
@@ -108,18 +72,20 @@ process resistomeresults {
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 3
-    
+
     publishDir "${params.output}/Results", mode: "copy"
 
     input:
         path(resistomes)
+        val(prefix)
 
     output:
         path("${prefix}_analytic_matrix.csv"), emit: raw_count_matrix
-        path("${prefix}_analytic_matrix.csv"), emit: snp_count_matrix, optional: true
 
+    script:
     """
-    ${PYTHON3} ${baseDir}/bin/amr_long_to_wide.py -i ${resistomes} -o ${prefix}_analytic_matrix.csv
+    \${PYTHON3:-python3} ${projectDir}/bin/amr_long_to_wide.py \\
+        -i ${resistomes} -o ${prefix}_analytic_matrix.csv
     """
 }
 
@@ -130,11 +96,8 @@ process runrarefaction {
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 3
 
-    publishDir "${params.output}/ResistomeAnalysis", mode: "copy",
-        saveAs: { filename ->
-            if(filename.indexOf(".tsv") > 0) "Rarefaction/Counts/$filename"
-            else {}
-        }
+    publishDir "${params.output}/ResistomeAnalysis/Rarefaction/Counts", mode: "copy",
+        saveAs: { filename -> filename.endsWith(".tsv") ? filename : null }
 
     input:
         tuple val(sample_id), path(bam)
@@ -145,23 +108,25 @@ process runrarefaction {
     output:
         path("*.tsv"), emit: rarefaction
 
+    script:
     """
-    samtools view -h ${bam} > ${sample_id}.sam
+    \${SAMTOOLS:-samtools} view -h ${bam} > ${sample_id}.sam
 
-    $rarefaction \
-      -ref_fp ${amr} \
-      -sam_fp ${sample_id}.sam \
-      -annot_fp ${annotation} \
-      -gene_fp ${sample_id}.gene.tsv \
-      -group_fp ${sample_id}.group.tsv \
-      -mech_fp ${sample_id}.mech.tsv \
-      -class_fp ${sample_id}.class.tsv \
-      -type_fp ${sample_id}.type.tsv \
-      -min ${min} \
-      -max ${max} \
-      -skip ${skip} \
-      -samples ${samples} \
-      -t ${threshold}
+    chmod +x ${rarefaction}
+    ./${rarefaction} \\
+        -ref_fp ${amr} \\
+        -sam_fp ${sample_id}.sam \\
+        -annot_fp ${annotation} \\
+        -gene_fp ${sample_id}.gene.tsv \\
+        -group_fp ${sample_id}.group.tsv \\
+        -mech_fp ${sample_id}.mech.tsv \\
+        -class_fp ${sample_id}.class.tsv \\
+        -type_fp ${sample_id}.type.tsv \\
+        -min ${params.min} \\
+        -max ${params.max} \\
+        -skip ${params.skip} \\
+        -samples ${params.samples} \\
+        -t ${params.threshold}
 
     rm ${sample_id}.sam
     """
@@ -174,11 +139,8 @@ process plotrarefaction {
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 3
 
-    publishDir "${params.output}/ResistomeAnalysis", mode: "copy",
-        saveAs: { filename ->
-            if(filename.indexOf(".png") > 0) "Rarefaction/Figures/$filename"
-            else {}
-        }
+    publishDir "${params.output}/ResistomeAnalysis/Rarefaction/Figures", mode: "copy",
+        saveAs: { filename -> filename.endsWith(".png") ? filename : null }
 
     input:
         path(rarefaction)
@@ -186,78 +148,106 @@ process plotrarefaction {
     output:
         path("*.png"), emit: plots
 
+    script:
     """
-    mkdir data/
+    mkdir -p data/
     mv *.tsv data/
-    python ${baseDir}/bin/rfplot.py --dir ./data --nd --s --sd .
+    \${PYTHON3:-python3} ${projectDir}/bin/rfplot.py --dir ./data --nd --s --sd .
     """
 }
 
-
 process runsnp {
-    tag {sample_id}
+    tag { sample_id }
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
+    errorStrategy 'ignore'
 
     publishDir "${params.output}/ResistomeAnalysis", mode: "copy",
         saveAs: { filename ->
-            if(filename.indexOf(".csv") > 0) "SNP_verification/$filename"
-            else if(filename.indexOf(".tsv") > 0 ) "SNP_verification_counts/$filename"
-            else {}
+            if( filename.endsWith(".csv") ) "SNP_verification/$filename"
+            else if( filename.endsWith(".tsv") ) "SNP_verification_counts/$filename"
+            else null
         }
-
-    errorStrategy = 'ignore'
 
     input:
         tuple val(sample_id), path(bam)
         path(snp_count_matrix)
+        val(prefix)
 
     output:
         path("${sample_id}.SNP_confirmed_gene.tsv"), emit: snp_counts
         path("${sample_id}.${prefix}_SNPs${sample_id}/*")
 
+    script:
     """
-    cp -r ${baseDir}/bin/AmrPlusPlus_SNP/* .
+    cp -r ${projectDir}/bin/AmrPlusPlus_SNP/* .
 
-    # change name to stay consistent with count matrix name, but only if the names don't match
+    # Keep the bam name consistent with the count matrix name
     if [ "${bam}" != "${sample_id}.bam" ]; then
         mv ${bam} ${sample_id}.bam
     fi
 
-    python3 SNP_Verification.py -c config.ini -t ${task.cpus} -a true -i ${sample_id}.bam -o ${sample_id}.${prefix}_SNPs --count_matrix ${snp_count_matrix}
+    \${PYTHON3:-python3} SNP_Verification.py -c config.ini -t ${task.cpus} -a true \\
+        -i ${sample_id}.bam -o ${sample_id}.${prefix}_SNPs \\
+        --count_matrix ${snp_count_matrix}
 
-    cut -d ',' -f `awk -v RS=',' "/${sample_id}/{print NR; exit}" ${sample_id}.${prefix}_SNPs${snp_count_matrix}` ${sample_id}.${prefix}_SNPs${snp_count_matrix} > ${sample_id}.${prefix}_SNP_count_col
+    cut -d ',' -f `awk -v RS=',' "/${sample_id}/{print NR; exit}" ${sample_id}.${prefix}_SNPs${snp_count_matrix}` \\
+        ${sample_id}.${prefix}_SNPs${snp_count_matrix} > ${sample_id}.${prefix}_SNP_count_col
 
     cut -d ',' -f 1 ${sample_id}.${prefix}_SNPs${snp_count_matrix} > gene_accession_labels
 
     paste gene_accession_labels ${sample_id}.${prefix}_SNP_count_col > ${sample_id}.SNP_confirmed_gene.tsv
-
     """
 }
-
 
 process snpresults {
     tag "Make SNP-confirmed matrix"
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-    
-    publishDir "${params.output}/Results", mode: "copy"
+    errorStrategy 'ignore'
 
-    errorStrategy = 'ignore'
+    publishDir "${params.output}/Results", mode: "copy"
 
     input:
         path(snp_counts)
+        val(prefix)
 
     output:
-        path("*_analytic_matrix.csv"), emit: snp_matrix
+        path("SNPconfirmed_${prefix}_analytic_matrix.csv"), emit: snp_matrix
 
+    script:
     """
+    \${PYTHON3:-python3} ${projectDir}/bin/snp_long_to_wide.py \\
+        -i ${snp_counts} -o SNPconfirmed_${prefix}_analytic_matrix.csv
+    """
+}
 
-    ${PYTHON3} ${baseDir}/bin/snp_long_to_wide.py -i ${snp_counts} -o SNPconfirmed_${prefix}_analytic_matrix.csv
+process normalise_matrix {
+    tag { "Normalise ${count_matrix.baseName}" }
+    label "python"
 
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 3
+
+    publishDir "${params.output}/Results", mode: "copy"
+
+    input:
+        path(count_matrix)
+        path(kraken_matrix)
+        path(kraken_unclassifieds)
+        path(gene_lengths)
+
+    output:
+        path("${count_matrix.baseName}_normalised.csv"), emit: normalised_matrix
+
+    script:
+    """
+    \${PYTHON3:-python3} ${projectDir}/bin/normalise_to_length.py \\
+        -i ${count_matrix} \\
+        -k ${kraken_matrix} \\
+        -u ${kraken_unclassifieds} \\
+        -l ${gene_lengths} \\
+        -b ${params.depth_basis} \\
+        -o ${count_matrix.baseName}_normalised.csv
     """
 }

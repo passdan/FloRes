@@ -8,7 +8,7 @@ Directory Structure
 
 The output directories created by the pipeline are named after the module that produced them. Each file output is prefixed with the sample name and suffixed with a short product description. 
 
-Files without sample prefixes are a result of aggregation. For example, the files **host.removal.stats** and **trimmomatic.stats** provide count matrices for the number of reads discarded as a result of host-dna removal and number of trimmed reads for each sample. 
+Files without sample prefixes are a result of aggregation. For example, the file **host.removal.stats** provides a count matrix for the number of reads discarded by host-DNA removal. 
 
 Below is an example of all of the results created with a test run of AMR++.
 
@@ -132,7 +132,6 @@ test_results
     ├── SNPconfirmed_dedup_AMR_analytic_matrix.csv
     ├── Stats
     │   ├── host.removal.stats
-    │   └── trimmomatic.stats
     └── dedup_AMR_analytic_matrix.csv
 
 

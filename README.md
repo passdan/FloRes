@@ -45,23 +45,42 @@ Note: If you are using Workbench/batch then you must pre-build the docker contai
 
 # Running the pipeline
 
-Default pipeline is `standard_AMR_wKraken_and_bracken` which will run from raw fastqs to the endpoint. Alternatives are to use mid-process data, kraken only etc. by modifying the --pipeline parameter
+The default pipeline is `standard`, which runs from raw fastqs through to
+normalised count matrices. Stages are switched on and off with parameters rather
+than by choosing a different pipeline.
 
-    Core pipelines:
-        - demo: Run a demonstration of AMR++
-        - standard_AMR_wKraken: Run the standard AMR++ pipeline with Kraken
-        - standard_AMR_wKraken_and_bracken: Run the standard AMR++ pipeline with Kraken AND Bracken
-        - standard_hifi: Run the standard AMR++ pipeline for long-read (cleaned) data
+    Pipelines (--pipeline, default: standard)
+        - standard   Full pipeline: QC, trimming, host removal, resistome,
+                     Kraken, Bracken and length normalisation
+        - bam        Resistome quantification from existing BAMs (--bam_files)
+        - hifi       HiFi BAMs to FASTQ (--bam_files), then the standard pipeline
+        - qc         FastQC and MultiQC only
+        - align      Bowtie2 alignment to MEGARes only
+        - kraken     Kraken2 (and Bracken) classification only
 
-    Available subworkflows:
-        - eval_qc: Run FastQC analysis
-        - trim_qc: Run trimming and quality control
-        - rm_host: Remove host reads
-        - resistome: Perform resistome analysis
-        - align: Perform alignment to MEGARes database
-        - kraken: Perform Kraken analysis
-        - **NEW** kraken_and_bracken: Perform Kraken and Bracken analysis
-        - qiime2: Perform QIIME 2 analysis
-        - bam_resistome: Perform resistome analysis on BAM files
+    Stage toggles (all true/false)
+        --fastqc              FastQC and MultiQC               (default: true)
+        --trim                fastp trimming                   (default: true)
+        --host_removal        Host read removal with bowtie2   (default: true)
+        --snp                 SNP confirmation                 (default: true)
+        --deduped             Also produce deduplicated counts (default: false)
+        --kraken              Kraken2 classification           (default: true)
+        --bracken             Bracken after Kraken2            (default: true)
+        --normalise_to_length Normalise to gene length and depth (default: true)
+
+    Normalisation
+        --depth_basis         classified | total               (default: classified)
+        --megares_lengths     Gene lengths table (gene_accession<TAB>bp)
+
+So the old `standard_AMR_wKraken` is now `--pipeline standard --bracken false`,
+and `fast_AMR` is `--pipeline standard --host_removal false`. The old
+`--pipeline` names error out with the replacement flags; see
+`docs/nextflow-26-migration.md`.
+
+16S/QIIME 2 support and trimmomatic have been removed. Trimming has been done by
+fastp for some time; the trimmomatic code path was already commented out.
+
+This pipeline targets Nextflow 26.04 and its strict syntax parser. Java 17 or
+newer is required.
 
 You're finished!

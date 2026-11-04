@@ -1,13 +1,13 @@
-// Load modules
-include { fastqc ; multiqc } from '../modules/Fastqc/fastqc'
+// FastQC and MultiQC read reporting.
 
-// fastQC
+include { fastqc ; multiqc } from "${projectDir}/modules/Fastqc/fastqc.nf"
+
 workflow FASTQ_QC_WF {
-    take: 
+    take:
         read_pairs_ch
+        multiqc_config
 
     main:
-        fastqc( read_pairs_ch )
-        multiqc(fastqc.out.collect(), params.multiqc )
-
+        fastqc(read_pairs_ch)
+        multiqc(fastqc.out.collect(), multiqc_config)
 }

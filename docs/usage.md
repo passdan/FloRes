@@ -5,14 +5,14 @@ Usage
 
 The `help` parameter displays the available options and commands.
 ```
-nextflow run main_AMR++.nf --help
+nextflow run . --help
 ```
 
 # Parameter selection
 AMR++ comes with a default selection of parameters to perform a demonstration using example data provided in the "data/" directory. The example command below uses two types of parameters. 
 
 ```
-nextflow run main_AMR++.nf -profile singularity --pipeline demo
+nextflow run . -profile singularity --pipeline demo
 ```
 
 The ```-profile``` parameter only has a single dash (```-```), meaning it corresponds to a nextflow-speific parameter and the  ```--pipeline```. Examples of parameters with one dash include ```-profile```, ```-resume```, and ```-config```. Further details on using the profile parameter, which determines how AMR++ runs on a computing cluster, can be found in the configuration document. Below, we'll see how to change the pipeline-specific parameters which are denoted using two dashes (```--```), such as ```--pipeline``` and ```--reads```.
@@ -31,7 +31,7 @@ The AMR++ pipeline pulls information from various sources to determine the corre
 
 6. The config file $HOME/.nextflow/config
 
-7. Values defined within the pipeline script itself (e.g. main_AMR++.nf)
+7. Values defined within the pipeline script itself (e.g. .)
 
 
 
@@ -41,14 +41,14 @@ The AMR++ pipeline pulls information from various sources to determine the corre
 
 The `reads` parameter accepts sequence files in standard fastq and gz format.
 ```
-$ nextflow run main_AMR++.nf --reads "data/raw/*_R{1,2}.fastq"
+$ nextflow run . --reads "data/raw/*_R{1,2}.fastq"
 ```
 
 ### Set host genome
 
 The `host` parameter accepts a fasta formatted host genome.
 ```
-$ nextflow run main_AMR++.nf --host "data/host/chr21.fasta.gz"
+$ nextflow run . --host "data/host/chr21.fasta.gz"
 ```
 
 ### Set MEGARes resistance database
@@ -56,7 +56,7 @@ $ nextflow run main_AMR++.nf --host "data/host/chr21.fasta.gz"
 The `amr` parameter accepts a fasta formatted resistance database. AMR++ is made to work with MEGARes databases and has to have the corresponding `--annotation` file in csv format.
 
 ```
-$ nextflow run main_AMR++.nf --amr "data/amr/megares_database_v1.02.fasta"
+$ nextflow run . --amr "data/amr/megares_database_v1.02.fasta"
 ```
 
 ### Set MEGARes annotation database
@@ -64,15 +64,13 @@ $ nextflow run main_AMR++.nf --amr "data/amr/megares_database_v1.02.fasta"
 The `annotation` parameter accepts a csv formatted annotation database. Note, this must match the resistance database that was used above for the ResistomeAnalyzer and RarefactionAnalyzer steps to work correctly. 
 
 ```
-$ nextflow run main_AMR++.nf --annotation "data/amr/megares_annotations_v1.02.csv"
+$ nextflow run . --annotation "data/amr/megares_annotations_v1.02.csv"
 ```
 
-### Set adapter file
+### Adapters
 
-The `adapters` parameter accepts a fasta formatted adapter file.
-```
-$ nextflow run main_AMR++.nf --adapters "data/adapters/adapters.fa"
-```
+Adapters are detected automatically by fastp (`--detect_adapter_for_pe`), so
+there is no adapters parameter.
 
 ## File Outputs
 
@@ -80,7 +78,7 @@ $ nextflow run main_AMR++.nf --adapters "data/adapters/adapters.fa"
 
 The `--output` parameter writes the results to the specified directory. As a nextflow variable, the `-work` parameter only requires one dash and determines where the temporary files will be directed. Upon completing the run, you can delete the temporary file directory.
 ```
-$ nextflow run main_AMR++.nf --output "test/" -work "work_dir/"
+$ nextflow run . --output "test/" -work "work_dir/"
 ```
 
 ## Resume a pipeline run
@@ -88,30 +86,25 @@ $ nextflow run main_AMR++.nf --output "test/" -work "work_dir/"
 If the pipeline run is cancelled or stopped for whatever reason, using the same command with the addition of the `-resume` flag will attempt to pick up where the pipeline stopped. This "work" directory can take a lot of storage space and we recommend deleting it after completion of the pipeline.
 
 ```
-$ nextflow run main_AMR++.nf --output "test/" -work "work_dir/" -resume
+$ nextflow run . --output "test/" -work "work_dir/" -resume
 ```
 
 ## Trimming Options
 
-### Set custom trimming parameters for trimmomatic
+### Trimming
 
-```
-$ nextflow run main_AMR++.nf \
-    --reads "data/raw/*_R{1,2}.fastq" \
-    --leading 3 \
-    --trailing 3 \
-    --minlen 36 \
-    --slidingwindow 4 \
-    --adapters "data/adapters/nextera.fa"
-    --output "test/"
-```
+Trimming is done by fastp with automatic adapter detection and `--cut_right`
+quality trimming. Trimmomatic has been removed, along with the `--leading`,
+`--trailing`, `--minlen`, `--slidingwindow` and `--adapters` parameters.
+
+Disable trimming entirely with `--trim false`.
 
 ## Algorithm Options
 
 ### Set custom ResistomeAnalyzer algorithm options
 
 ```
-$ nextflow run main_AMR++.nf \
+$ nextflow run . \
     --reads "data/raw/*_R{1,2}.fastq" \
     --threshold 80 \
     --min 1 \
@@ -121,16 +114,25 @@ $ nextflow run main_AMR++.nf \
     --output "test/"
 ```
 
-## Set number of threads to use for each process (when possible)
+## Set CPUs per process
+
+The `--threads` parameter has been removed. Processes use `task.cpus`, set per
+process in `params.config` or your profile config:
 
 ```
-$ nextflow run main_AMR++.nf --threads 8
+process {
+    withName: 'runkraken' {
+        cpus = 16
+        memory = "245.GB"
+    }
+}
 ```
+
 
 ## Run AMR++ with SLURM
 
 Adding the ```-bg``` flag submits AMR++ to the SLURM queue and when combined with a "slurm" profile, jobs will be submitted for each individual process in the pipeline.
 
 ```
-nextflow run main_AMR++.nf -profile local_slurm --snp Y -bg > bg-log.out
+nextflow run . -profile local_slurm --snp true -bg > bg-log.out
 ```

@@ -1,12 +1,10 @@
+include { as_bool } from "${projectDir}/modules/functions.nf"
+
 process SAMTOOLS_BAM2FQ {
     tag "$meta"
-    label 'process_low'
+    label 'alignment'
     cpus 16
 
-    conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/samtools:1.22.1--h96c455f_0' :
-        'biocontainers/samtools:1.22.1--h96c455f_0' }"
 
     input:
     tuple val(meta), path(inputbam)
@@ -16,14 +14,11 @@ process SAMTOOLS_BAM2FQ {
     tuple val(meta), path("*.fq.gz"), emit: reads
     path "versions.yml"             , emit: versions
 
-    when:
-    task.ext.when == null || task.ext.when
-
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta}"
 
-    if (split){
+    if( as_bool(split) ) {
         """
         samtools \\
             bam2fq \\
@@ -40,7 +35,8 @@ process SAMTOOLS_BAM2FQ {
             samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//')
         END_VERSIONS
         """
-    } else {
+    }
+    else {
         """
         samtools \\
             bam2fq \\

@@ -14,7 +14,7 @@ Next, we will run a small sample dataset that comes with the pipeline source cod
 cd AMRplusplus
 
 # Run test of AMR++ by specifying the "-profile singularity".
-nextflow run main_AMR++.nf -profile singularity
+nextflow run . -profile singularity
 
 # Explore the "test_results/" directory to view pipeline outputs
 ls test_results/
@@ -27,15 +27,15 @@ We can now change the "--pipeline" parameter to perform a different set of analy
 ```bash
 # Run another test, but now we add "--pipeline eval_qc" to only calculate QC stats.
 # We'll also change the "--output" flag to store the results in a new directory.
-nextflow run main_AMR++.nf -profile singularity --pipeline eval_qc --output test_QC_stats
+nextflow run . -profile singularity --pipeline eval_qc --output test_QC_stats
 
 # View the results
 ls test_QC_stats/
 
 # Look at the multiqc_report.html and modify the params.config file to change trimming parameters.
 
-# Now, you can run just the QC trimming step with trimmomatic, by using the "--pipeline trim_qc" flag. Change output and work directory.
-nextflow run main_AMR++.nf -profile singularity --pipeline trim_qc --output test_QC_trimming -w work_trim
+# Trimming is part of the standard pipeline. To skip the Kraken stages, use --kraken false.
+nextflow run . -profile singularity --pipeline standard --kraken false --output test_QC_trimming -w work_trim
 
 # If the pipeline completes without issue, remember to erase your "work" directories to save storage space.
 
@@ -46,7 +46,7 @@ Alternatively, you can run the entire pipeline as shown below.
 
 ```bash
 
-# You can use the "--pipeline standard_AMR" to run the standard AMR++ pipeline.
-nextflow run main_AMR++.nf -profile singularity --pipeline standard_AMR --output test_AMR++_output -w work_AMR++
+# Use "--pipeline standard" to run the full AMR++ pipeline.
+nextflow run . -profile singularity --pipeline standard --output test_AMR++_output -w work_AMR++
 
 ```

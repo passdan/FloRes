@@ -1,241 +1,178 @@
-nextflow.enable.dsl=2
-// Example command:
-// module load python/3.9.3_anaconda2021.11_mamba
-// nextflow run main_AMR++.nf -profile conda --pipeline demo
-// nextflow run main_AMR++.nf -profile conda --pipeline demo --kraken_db /mnt/c/Users/enriq/Dropbox/minikraken_8GB_20200312/
+// FloRes / AMR++ : resistome and microbiome characterisation.
+//
+// Written for the strict syntax parser, which is the default from Nextflow 26.04.
+// See docs/nextflow-26-migration.md for what that required.
+//
+// Example:
+//   nextflow run . -profile conda --reads "data/raw/*_R{1,2}.fastq.gz"
+//   nextflow run . -profile conda --reads "..." --host_removal false --bracken false
 
-/*
- * Default pipeline parameters. They can be overriden on the command line eg.
- * given `params.foo` specify on the run command line `--foo some_value`.
-*/
+include { AMRPLUSPLUS }       from "${projectDir}/subworkflows/amrplusplus.nf"
+include { RESISTOME_WF }      from "${projectDir}/subworkflows/resistome.nf"
+include { FASTQ_QC_WF }       from "${projectDir}/subworkflows/fastq_information.nf"
+include { FASTQ_ALIGN_WF }    from "${projectDir}/subworkflows/fastq_align.nf"
+include { FASTQ_MICROBIOME_WF } from "${projectDir}/subworkflows/fastq_microbiome.nf"
+include { SAMTOOLS_BAM2FQ }   from "${projectDir}/modules/Tools/bam2fq.nf"
+include { as_bool ; check_file ; check_dir } from "${projectDir}/modules/functions.nf"
 
-log.info """\
- A M R + +    N F   P I P E L I N E
- ===================================
- reads        : ${params.reads}
- bams         : ${params.bam_files}
- output       : ${params.output}
- """
+def PIPELINES = ['standard', 'bam', 'hifi', 'qc', 'align', 'kraken']
 
+def RETIRED = [
+    'demo'                              : '--pipeline standard --host_removal false',
+    'fast_AMR'                          : '--pipeline standard --host_removal false',
+    'standard_AMR'                      : '--pipeline standard --kraken false',
+    'standard_AMR_wKraken'              : '--pipeline standard --bracken false',
+    'standard_AMR_wKraken_and_Bracken'  : '--pipeline standard',
+    'standard_hifi'                     : '--pipeline hifi',
+    'resistome'                         : '--pipeline standard --kraken false --trim false --host_removal false',
+    'resistome_BWA'                     : '--pipeline standard --kraken false --trim false --host_removal false',
+    'bam_resistome'                     : '--pipeline bam',
+    'kraken_and_bracken'                : '--pipeline kraken',
+    'eval_qc'                           : '--pipeline qc',
+    'trim_qc'                           : '--pipeline standard --kraken false',
+    'rm_host'                           : '--pipeline standard --kraken false',
+    'qiime2'                            : 'removed: 16S/QIIME2 support has been dropped'
+]
 
-def helpMessage = """\
-    AMR++ Nextflow Pipeline Help
-    =============================
+def helpMessage() {
+    log.info """
+    FloRes / AMR++ Nextflow pipeline
+    ================================
 
-    Available pipelines:
-        - demo: Run a demonstration of AMR++
-        - standard_AMR: Run the standard AMR++ pipeline (without kraken)
-        - fast_AMR: Run the fast AMR++ pipeline without host removal.
-        - standard_AMR_wKraken: Run the standard AMR++ pipeline with Kraken
-        - standard_AMR_wKraken_and_Bracken: Run the standard AMR++ pipeline with Kraken AND Bracken
+    Usage:
+        nextflow run . -profile <profile> --reads "path/to/*_R{1,2}.fastq.gz"
 
-    To run a specific pipeline, use the "--pipeline" option followed by the pipeline name:
-        nextflow run main_AMR++.nf --pipeline <pipeline_name> [other_options]
+    Pipelines (--pipeline, default: standard)
+        standard   Full pipeline: QC, trimming, host removal, resistome, Kraken,
+                   Bracken and length normalisation. Stages are toggled with the
+                   parameters below rather than by choosing a different pipeline.
+        bam        Resistome quantification from existing BAM alignments (--bam_files).
+        hifi       Convert HiFi BAMs to FASTQ (--bam_files), then run the standard pipeline.
+        qc         FastQC and MultiQC only.
+        align      Bowtie2 alignment to MEGARes only.
+        kraken     Kraken2 (and Bracken) classification only.
 
-    To analyze your samples or otherwise change how AMR++ runs, modify the "params.config" file 
-    or add more parameters to the command line.
+    Stage toggles (all true/false)
+        --fastqc              Run FastQC and MultiQC          (default: true)
+        --trim                Run fastp trimming              (default: true)
+        --host_removal        Remove host reads with bowtie2  (default: true)
+        --snp                 Run SNP confirmation            (default: true)
+        --deduped             Also produce deduplicated counts(default: false)
+        --kraken              Run Kraken2 classification      (default: true)
+        --bracken             Run Bracken after Kraken2       (default: true)
+        --normalise_to_length Normalise matrices to gene length and depth (default: true)
 
-    Modify the "-profile" with options:
-        - local: Assumes all sofware is already in your \$PATH
-        - local_slurm: Local installation and adds control over slurm job submission.
-        - conda: Uses "mamba" to install a conda environment. 
-        - conda_slurm: Uses "mamba" and adds control over slurm job submission.
-        - singularity: Uses a "singularity" image container.
-        - singularity_slurm: Singularity image and adds control over slurm job submission.
-        - apptainer_slurm: New clone of singularity - all parameters duplicated from above.
-        - docker: Uses a docker image container.
-        - workbench: Verily Workbench platform with Google Batch submission
-    
-    To include deduplicated count analysis, add `--deduped Y` to your command. 
-    Please be aware that adding deduplicated counts will significantly increase run time and temp file storage requirements.
+    Normalisation
+        --depth_basis         classified | total              (default: classified)
+                              classified uses the Kraken matrix column sums, i.e.
+                              classified reads. total adds unclassified reads from
+                              kraken_unclassifieds.csv. Values are not comparable
+                              between the two bases.
+        --megares_lengths     MEGARes gene lengths table (gene_accession<TAB>bp)
 
+    Profiles (-profile)
+        local, local_slurm, conda, conda_slurm, singularity, singularity_slurm,
+        apptainer_slurm, docker, google-batch, workbench
+
+    Run --help for this message.
     """
-
-// Load null pipeline
-params.pipeline = null
-
-// Load main pipeline workflows
-include { STANDARD_AMRplusplus } from './subworkflows/AMRplusplus_standard.nf'
-include { FAST_AMRplusplus } from './subworkflows/AMRplusplus_fast.nf'
-include { STANDARD_AMRplusplus_wKraken } from './subworkflows/AMRplusplus_standard_wKraken.nf'
-include { STANDARD_full_hifi } from './subworkflows/AMRplusplus_full_hifi.nf'
-include { STANDARD_AMRplusplus_wKrak_and_Brack } from './subworkflows/AMRplusplus_standard_wKrak_and_Brack.nf'
-
-// Load subworkflows
-include { FASTQ_QC_WF } from './subworkflows/fastq_information.nf'
-include { FASTQ_TRIM_WF } from './subworkflows/fastq_QC_trimming.nf'
-include { FASTQ_ALIGN_WF } from './subworkflows/fastq_align.nf'
-include { FASTQ_RM_HOST_WF } from './subworkflows/fastq_host_removal.nf' 
-include { FASTQ_RESISTOME_WF } from './subworkflows/fastq_resistome.nf'
-include { FASTQ_RESISTOME_WF_BWA } from './subworkflows/fastq_resistome_bwa.nf'
-include { FASTQ_KRAKEN_WF } from './subworkflows/fastq_microbiome.nf'
-include { FASTQ_KRAKEN_AND_BRACKEN_WF } from './subworkflows/fastq_microbiome_wBracken.nf'
-include { FASTQ_QIIME2_WF } from './subworkflows/fastq_16S_qiime2.nf'
-
-// Load BAM subworkflows
-include { BAM_RESISTOME_WF } from './subworkflows/bam_resistome.nf'
-
-
-//taxlevel_ch = Channel.of("D","P","C","O","F","G","S")
-taxlevel_ch = Channel.from(params.taxlevel.tokenize(','))
-
-if ( params.reads != null ){
-	Channel
-	    .fromFilePairs( params.reads , size: (params.reads =~ /\{/) ? 2 : 1)
-	    .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
-	    .map { id, files -> 
-	        def modified_baseName = id.split('\\.')[0]
-        	tuple(modified_baseName, files)
-	    }
-	    .set {fastq_files}
 }
-if ( params.bam_files != null ){
-	Channel
-       	    .fromPath(params.bam_files)
-            .ifEmpty { exit 1, "bam files could not be found: ${params.bam_files}" }
-       	    .map { file ->
-            def modified_baseName = file.baseName.split('\\.')[0]
-       	      tuple(modified_baseName, file)
-                }
-       	    .set {bam_files_ch}
-} 
-if (params.reads != null | params.bam_files != null) {
-	println "You didn't provide any fastq or bam files as input - exiting"
-}
-
-
 
 workflow {
-
-
-    if (params.pipeline == null || params.pipeline == "help") {
-
-        println helpMessage
-
-
-        log.info """\
-        ===================================
-        Running a demonstration of AMR++
-        ===================================
-        """
-        //run with demo params, use params.config
-        FAST_AMRplusplus(fastq_files, params.amr, params.annotation)
-        
+    main:
+    if( as_bool(params.help) ) {
+        helpMessage()
+        return
     }
-    else if(params.pipeline == "demo") {
-        log.info """\
-        ===================================
-        Running a demonstration of AMR++
-        ===================================
-        """
-        //run with demo params, use params.config
-        FAST_AMRplusplus(fastq_files, params.amr, params.annotation)
-    } 
-    else if(params.pipeline == "standard_AMR") {
 
-        STANDARD_AMRplusplus(fastq_files,params.host, params.amr, params.annotation)
-        
-    } 
-    else if(params.pipeline == "standard_hifi") {
-
-        STANDARD_full_hifi(bam_files_ch,params.host, params.amr, params.annotation, params.kraken_db, taxlevel_ch, params.split)
-        
-    } 
-    else if(params.pipeline == "fast_AMR") {
-
-        FAST_AMRplusplus(fastq_files, params.amr, params.annotation)
-    } 
-    else if(params.pipeline == "standard_AMR_wKraken") {
-
-        STANDARD_AMRplusplus_wKraken(fastq_files,params.host, params.amr, params.annotation, params.kraken_db)
-    } 
-    else if(params.pipeline == "eval_qc") {
-
-        FASTQ_QC_WF( fastq_files )
-    } 
-    else if(params.pipeline == "trim_qc") {
-
-        FASTQ_TRIM_WF( fastq_files )
+    if( !PIPELINES.contains(params.pipeline) ) {
+        if( RETIRED.containsKey(params.pipeline) )
+            error "--pipeline ${params.pipeline} was removed in this version. Use: ${RETIRED[params.pipeline]}"
+        error "Unknown --pipeline '${params.pipeline}'. Choose one of: ${PIPELINES.join(', ')}"
     }
-    else if(params.pipeline == "rm_host") {
 
-        FASTQ_RM_HOST_WF(params.host, fastq_files )
-    } 
-    else if(params.pipeline == "resistome") {
+    log.info """
+    A M R + +   N F   P I P E L I N E
+    =================================
+    pipeline     : ${params.pipeline}
+    reads        : ${params.reads}
+    bams         : ${params.bam_files}
+    output       : ${params.output}
+    """.stripIndent()
 
-        FASTQ_RESISTOME_WF_BWA( fastq_files, params.amr, params.annotation )
-    }  
-    else if(params.pipeline == "resistome_BWA") {
+    def needs_reads = ['standard', 'qc', 'align', 'kraken'].contains(params.pipeline)
+    def needs_bams  = ['bam', 'hifi'].contains(params.pipeline)
 
-        FASTQ_RESISTOME_WF_BWA( fastq_files, params.amr, params.annotation )
-    }  
-    else if(params.pipeline == "align") {
+    if( needs_reads && !params.reads )
+        error "--pipeline ${params.pipeline} needs --reads"
+    if( needs_bams && !params.bam_files )
+        error "--pipeline ${params.pipeline} needs --bam_files"
 
-        FASTQ_ALIGN_WF( fastq_files, params.amr)
-    }  
-    else if(params.pipeline == "kraken") {
-
-        FASTQ_KRAKEN_WF( fastq_files , params.kraken_db)
+    fastq_ch = channel.empty()
+    if( needs_reads ) {
+        fastq_ch = channel
+            .fromFilePairs(params.reads, size: params.reads.contains('{') ? 2 : 1)
+            .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
+            .map { id, files -> tuple(id.split('\\.')[0], files) }
     }
-    else if(params.pipeline == "standard_AMR_wKraken_and_Bracken") {
 
-         STANDARD_AMRplusplus_wKrak_and_Brack(fastq_files,params.host, params.amr, params.annotation, params.kraken_db, taxlevel_ch)
-    }
-    else if(params.pipeline == "kraken_and_bracken") {
-
-         FASTQ_KRAKEN_AND_BRACKEN_WF(fastq_files, params.kraken_db, taxlevel_ch)
-    }
-    else if(params.pipeline == "qiime2") {
-        Channel
-            .fromFilePairs( params.reads, flat: true )
-            .ifEmpty { exit 1, "Read pair files could not be found: ${params.reads}" }
-            .map { name, forward, reverse -> [ forward.drop(forward.findLastIndexOf{"/"})[0], forward, reverse ] } //extract file name
-            .map { name, forward, reverse -> [ name.toString().take(name.toString().indexOf("_")), forward, reverse ] } //extract sample name
-            .map { name, forward, reverse -> [ name +","+ forward + ",forward\n" + name +","+ reverse +",reverse" ] } //prepare basic synthax
-            .flatten()
-            .collectFile(name: 'manifest.txt', newLine: true, storeDir: "${params.output}/demux", seed: "sample-id,absolute-filepath,direction")
-            .set { ch_manifest }
-        
-        FASTQ_QIIME2_WF( ch_manifest , params.dada2_db)
-    }
-    else if(params.pipeline == "bam_resistome"){
-        log.info """\
-        =======================================
-        Running resistome analysis on bam files
-        with bwa alignments to the MEGARes db.
-
-        Use the --bam_files argument and change
-        the --output flag to keep track of your
-        standard vs deduped data.
-        =======================================
-        """
-        Channel
+    bam_ch = channel.empty()
+    if( needs_bams ) {
+        bam_ch = channel
             .fromPath(params.bam_files)
-            .ifEmpty { exit 1, "bam files could not be found: ${params.bam_files}" }
-            .map { file ->
-            def modified_baseName = file.baseName.split('\\.')[0]
-              tuple(modified_baseName, file)
-                }
-            .set {bam_files_ch}
-        BAM_RESISTOME_WF( bam_files_ch , params.amr, params.annotation )
+            .ifEmpty { error "Cannot find any bam files matching: ${params.bam_files}" }
+            .map { entry -> tuple(entry.baseName.split('\\.')[0], entry) }
     }
-    else {
-            println "ERROR ################################################################"
-            println "Please choose a pipeline!!!" 
-            println ""
-            println "To test the pipeline, use the \"demo\" pipeline or omit the pipeline flag:"
-            println ""
-            println "ERROR ################################################################"
-            println "Exiting ..."
-            System.exit(0)  
+
+    taxlevel_ch = channel.fromList(params.taxlevel.tokenize(','))
+
+    if( params.pipeline == 'standard' ) {
+        AMRPLUSPLUS(
+            fastq_ch,
+            as_bool(params.host_removal) ? check_file(params.host, 'host') : [],
+            check_file(params.amr, 'amr'),
+            check_file(params.annotation, 'annotation'),
+            params.kraken_db,
+            taxlevel_ch
+        )
     }
-}
+    else if( params.pipeline == 'hifi' ) {
+        SAMTOOLS_BAM2FQ(bam_ch, params.split)
+        AMRPLUSPLUS(
+            SAMTOOLS_BAM2FQ.out.reads,
+            as_bool(params.host_removal) ? check_file(params.host, 'host') : [],
+            check_file(params.amr, 'amr'),
+            check_file(params.annotation, 'annotation'),
+            params.kraken_db,
+            taxlevel_ch
+        )
+    }
+    else if( params.pipeline == 'bam' ) {
+        RESISTOME_WF(
+            bam_ch,
+            check_file(params.amr, 'amr'),
+            check_file(params.annotation, 'annotation'),
+            params.prefix,
+            true
+        )
+    }
+    else if( params.pipeline == 'qc' ) {
+        FASTQ_QC_WF(fastq_ch, params.multiqc)
+    }
+    else if( params.pipeline == 'align' ) {
+        FASTQ_ALIGN_WF(fastq_ch, check_file(params.amr, 'amr'))
+    }
+    else if( params.pipeline == 'kraken' ) {
+        FASTQ_MICROBIOME_WF(fastq_ch, params.kraken_db, taxlevel_ch)
+    }
 
-
-workflow.onComplete {
-    println "Pipeline completed!"
-    println "Started at  $workflow.start"
-    println "Finished at $workflow.complete"
-    println "Time elapsed: $workflow.duration"
-    println "Execution status: ${ workflow.success ? 'OK' : 'failed' }"
+    workflow.onComplete = {
+        log.info """
+        Pipeline completed!
+        Started at   : ${workflow.start}
+        Finished at  : ${workflow.complete}
+        Time elapsed : ${workflow.duration}
+        Status       : ${workflow.success ? 'OK' : 'failed'}
+        """.stripIndent()
+    }
 }

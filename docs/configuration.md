@@ -151,13 +151,13 @@ If you intend to run multiple samples in parallel, you must specify a glob patte
 For example, the default parameters can be used to run the pipeline with this command:
 
 ```bash
-nextflow run main_AMR++.nf -profile singularity
+nextflow run . -profile singularity
 ```
 
 This will run the default samples through the pipeline and this can be seen below, under the ```--reads``` parameter. To change the reads that were analyzed, you should specify the ```--reads`` parameter on the command line. Here, we can use regular expressions to point to your samples in a different directory.
 
 ```bash
-nextflow run main_AMR++.nf -profile singularity  --reads "path/to/your/reads/*_R{1,2}.fastq.gz" 
+nextflow run . -profile singularity  --reads "path/to/your/reads/*_R{1,2}.fastq.gz" 
 ```
 
 #### Running with Kraken
@@ -172,60 +172,52 @@ If you would like to use a custom database or the standard Kraken database (~160
 
 #### Running with SNP confirmation
 -----
-To include SNP confirmation as part of the AMR++ analysis, you have to include the ```--snp Y``` flag. Like this:
+To include SNP confirmation as part of the AMR++ analysis, you have to include the ```--snp true``` flag. Like this:
 
 ```bash
-nextflow run main_AMR++.nf -profile singularity  --reads "path/to/your/reads/*_R{1,2}.fastq.gz" --snp Y
+nextflow run . -profile singularity  --reads "path/to/your/reads/*_R{1,2}.fastq.gz" --snp true
 ```
 
 #### Running with deduplicated counts
 -----
-Additionally, you can also output deduplicated counts by cinluding the flag, ```--deduped Y```. Like this:
+Additionally, you can also output deduplicated counts by including the flag ```--deduped true```. Like this:
 
 ```bash
-nextflow run main_AMR++.nf -profile singularity  --reads "path/to/your/reads/*_R{1,2}.fastq.gz" --snp Y --deduped Y
+nextflow run . -profile singularity  --reads "path/to/your/reads/*_R{1,2}.fastq.gz" --snp true --deduped true
 ```
 
 
 ## Selecting the right pipeline
 
-AMR++ now includes the option to run different components of the pipeline at a time by specifying the ```--pipeline``` flag.
+There is one main pipeline, `standard`, and stages are switched on and off with
+parameters rather than by choosing a different pipeline.
 
-Main pipeline options
-  * Standard AMR pipeline ( QC trimming > Host DNA removal > Resistome alignment > Resistome results)
-    ```bash
-    --pipeline standard_AMR
-    ```  
-  * Fast AMR pipeline (QC trimming > Resistome alignment > Resistome results)
-    ```bash
-    --pipeline fast_AMR
-    ``` 
-  * AMR pipeline with kraken ( QC trimming > Host DNA removal > Resistome alignment > Resistome results) & (Non-host reads > Microbiome analysis)
-    ```bash
-    --pipeline standard_AMR_wKraken
-    ``` 
-  * 16S Microbiome analysis with qiime2 (DADA2 QC > Classification with SILVA)
-    ```bash
-    --pipeline qiime2
-    ``` 
-Pipeline components
-  * Evaluate QC with multiQC
-    ```bash
-    --pipeline eval_qc
-    ``` 
-  * QC trimming with trimmomatic
-    ```bash
-    --pipeline trim_qc
-    ``` 
-  * Align reads to host DNA and remove contaminants
-    ```bash
-    --pipeline rm_host
-    ``` 
-  * Only perform AMR++ resistome analysis
-    ```bash
-    --pipeline resistome
-    ``` 
-  * Only perform microbiome analysis with Kraken
-    ```bash
-    --pipeline kraken
-    ``` 
+```bash
+# Everything: QC, trimming, host removal, resistome, Kraken, Bracken, normalisation
+--pipeline standard
+
+# Skip host removal (the old fast_AMR)
+--pipeline standard --host_removal false
+
+# Resistome only, no taxonomy (the old standard_AMR)
+--pipeline standard --kraken false
+
+# Kraken but not Bracken (the old standard_AMR_wKraken)
+--pipeline standard --bracken false
+```
+
+Other entry points:
+
+```bash
+--pipeline bam      # resistome from existing BAMs, needs --bam_files
+--pipeline hifi     # HiFi BAMs to FASTQ, then the standard pipeline
+--pipeline qc       # FastQC and MultiQC only
+--pipeline align    # Bowtie2 alignment to MEGARes only
+--pipeline kraken   # Kraken2 and Bracken only
+```
+
+Stage toggles, all `true`/`false`: `--fastqc`, `--trim`, `--host_removal`,
+`--snp`, `--deduped`, `--kraken`, `--bracken`, `--normalise_to_length`.
+
+16S/QIIME 2 analysis and trimmomatic trimming have been removed.
+

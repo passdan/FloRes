@@ -54,7 +54,7 @@ cd AMRplusplus
 conda install mamba -n base -c conda-forge
 
 # Test AMR++ by specifying the "conda" profile. 
-nextflow run main_AMR++.nf -profile conda
+nextflow run . -profile conda
 
 # If your computing cluster uses the slurm scheduler, modify the script "run_AMR++_slurm.sh" to
 # accurately request computing resources. Then, run it using:
@@ -81,7 +81,7 @@ git clone https://github.com/Microbial-Ecology-Group/AMRplusplus.git
 cd AMRplusplus
 
 # Test AMR++ by specifying the "conda" profile. If your computing cluster uses the slurm scheduler, use the "conda_slurm" profile.
-nextflow run main_AMR++.nf -profile conda
+nextflow run . -profile conda
 ```
 
 Optionally, you can create the conda environment prior to running AMR++.
@@ -94,7 +94,7 @@ conda env create -f envs/AMR++_env.yaml
 conda activate activate AMR++_env
 
 # Now, the tools will be available "locally" so we must run AMR++ using the "local" profile.
-nextflow run main_AMR++.nf -profile local
+nextflow run . -profile local
 
 ```
 
@@ -115,13 +115,13 @@ git clone https://github.com/Microbial-Ecology-Group/AMRplusplus.git
 cd AMRplusplus
 
 # Run command with singularity profile
-nextflow run main_AMR++.nf -profile singularity
+nextflow run . -profile singularity
 
 # Alternatively, you can pull the singularity container first like this:
 singularity pull docker://enriquedoster/amrplusplus:latest
 
 # Then, specify the path to the singularity image.
-nextflow run main_AMR++.nf -profile local -with-singularity amrplusplus_latest.sif
+nextflow run . -profile local -with-singularity amrplusplus_latest.sif
 
 ```
 
@@ -142,7 +142,7 @@ git clone https://github.com/Microbial-Ecology-Group/AMRplusplus.git
 cd AMRplusplus
 
 # Run command with docker profile
-nextflow run main_AMR++.nf -profile docker
+nextflow run . -profile docker
 
 ```
 
@@ -158,5 +158,5 @@ Requirements:
 If Singularity cannot be installed, or perhaps your computing cluster has all of the required tools, configure the "config/local.config" file to specify the absolute PATH to each required bioinformatic tool. Or if you can add all of the relevant paths to your $PATH environment variable, which in some cases means loading the correct modules, then you can just leave the name of each tool without the path. Finally, change the flag after "-profile" to "local" when running the pipeline.
 
 ```bash
-nextflow run main_AMR++.nf -profile local
+nextflow run . -profile local
  ```

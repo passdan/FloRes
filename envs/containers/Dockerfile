@@ -60,7 +60,7 @@ RUN set -x && \
     find /opt/conda/ -follow -type f -name '*.js.map' -delete && \
     /opt/conda/bin/conda clean -afy && \
     /opt/conda/bin/conda install -c conda-forge mamba && \
-    /opt/conda/bin/mamba install -c conda-forge -c bioconda git python=3.9 trimmomatic multiqc bwa samtools bedtools kraken2 multiqc fastqc krona bracken numpy pysam pandas biopython matplotlib nextflow=24 fastp bowtie2 && \
+    /opt/conda/bin/mamba install -c conda-forge -c bioconda git python=3.9 multiqc bwa samtools bedtools kraken2 multiqc fastqc krona bracken numpy pysam pandas biopython matplotlib nextflow fastp bowtie2 && \
     conda clean --all
 
 # Copy AMR++ bin scripts into the container
