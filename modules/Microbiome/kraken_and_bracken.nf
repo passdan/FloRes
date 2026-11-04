@@ -1,18 +1,18 @@
 // Kraken2 classification and Bracken abundance re-estimation.
 
-include { as_bool } from "${projectDir}/modules/functions.nf"
+include { as_bool } from '../functions.nf'
 
 process dlkraken {
     tag "Download minikraken db"
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
+    // nextflow lint warns about projectDir in a process. It is deliberate here:
+    // the database is cached into the repo so later runs reuse it instead of
+    // re-downloading. FASTQ_MICROBIOME_WF checks for it before calling this.
     publishDir "${projectDir}/data/kraken_db/", mode: 'copy'
 
     output:
-        path("minikraken_8GB_20200312/"), emit: krakendb
+    path ("minikraken_8GB_20200312/"), emit: krakendb
 
     script:
     """
@@ -26,30 +26,36 @@ process runkraken {
     tag { sample_id }
     label "microbiome"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
-    publishDir "${params.output}/MicrobiomeAnalysis", mode: 'copy',
-        saveAs: { filename ->
-            if( filename.endsWith(".kraken.filtered.report") ) "Kraken/filtered_report/$filename"
-            else if( filename.endsWith(".kraken.filtered.raw") ) "Kraken/filtered/$filename"
-            else if( filename.endsWith(".kraken.report") ) "Kraken/standard_report/$filename"
-            else if( filename.endsWith(".kraken.raw") ) "Kraken/standard/$filename"
-            else null
+    publishDir "${params.output}/MicrobiomeAnalysis", mode: 'copy', saveAs: { filename ->
+        if (filename.endsWith(".kraken.filtered.report")) {
+            "Kraken/filtered_report/${filename}"
         }
+        else if (filename.endsWith(".kraken.filtered.raw")) {
+            "Kraken/filtered/${filename}"
+        }
+        else if (filename.endsWith(".kraken.report")) {
+            "Kraken/standard_report/${filename}"
+        }
+        else if (filename.endsWith(".kraken.raw")) {
+            "Kraken/standard/${filename}"
+        }
+        else {
+            null
+        }
+    }
 
     input:
-        tuple val(sample_id), path(reads)
-        path(krakendb)
+    tuple val(sample_id), path(reads)
+    path krakendb
 
     output:
-        tuple val(sample_id), path("${sample_id}.kraken.raw"), emit: kraken_raw
-        path("${sample_id}.kraken.report"), emit: kraken_report
-        tuple val(sample_id), path("${sample_id}.kraken.report"), emit: bracken_input
-        tuple val(sample_id), path("${sample_id}_kraken2.krona"), emit: krakenkrona
-        tuple val(sample_id), path("${sample_id}.kraken.filtered.raw"), emit: kraken_filter_raw, optional: true
-        path("${sample_id}.kraken.filtered.report"), emit: kraken_filter_report, optional: true
-        tuple val(sample_id), path("${sample_id}_kraken2_filtered.krona"), emit: krakenkrona_filtered, optional: true
+    tuple val(sample_id), path("${sample_id}.kraken.raw"), emit: kraken_raw
+    path ("${sample_id}.kraken.report"), emit: kraken_report
+    tuple val(sample_id), path("${sample_id}.kraken.report"), emit: bracken_input
+    tuple val(sample_id), path("${sample_id}_kraken2.krona"), emit: krakenkrona
+    tuple val(sample_id), path("${sample_id}.kraken.filtered.raw"), emit: kraken_filter_raw, optional: true
+    path ("${sample_id}.kraken.filtered.report"), emit: kraken_filter_report, optional: true
+    tuple val(sample_id), path("${sample_id}_kraken2_filtered.krona"), emit: krakenkrona_filtered, optional: true
 
     script:
     def input_args = reads instanceof List && reads.size() > 1
@@ -75,21 +81,18 @@ process krakenresults {
     tag "Make Kraken count matrix"
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
     publishDir "${params.output}/Results/", mode: 'copy'
 
     input:
-        path(kraken_reports)
+    path kraken_reports
 
     output:
-        path("kraken_analytic_matrix.csv"), emit: kraken_matrix
-        path("kraken_unclassifieds.csv"), emit: kraken_unclassifieds
+    path ("kraken_analytic_matrix.csv"), emit: kraken_matrix
+    path ("kraken_unclassifieds.csv"), emit: kraken_unclassifieds
 
     script:
     """
-    \${PYTHON3:-python3} ${projectDir}/bin/kraken2_long_to_wide_update.py \\
+    kraken2_long_to_wide_update.py \\
         -i ${kraken_reports} -o kraken_analytic_matrix.csv
     """
 }
@@ -98,14 +101,12 @@ process runbracken {
     tag { "${sample_id} ${level}" }
     label "microbiome"
 
-    errorStrategy { task.exitStatus == 1 ? 'ignore' : 'terminate' }
-
     input:
-        tuple val(sample_id), path(kraken_report), val(level)
-        path(krakendb)
+    tuple val(sample_id), path(kraken_report), val(level)
+    path krakendb
 
     output:
-        tuple val("${level}"), path("${sample_id}_${level}.bracken.tsv"), emit: bracken_by_level
+    tuple val("${level}"), path("${sample_id}_${level}.bracken.tsv"), emit: bracken_by_level
 
     script:
     """
@@ -122,16 +123,13 @@ process brackenresults {
     tag { level }
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
     publishDir "${params.output}/Results/Bracken", mode: 'copy'
 
     input:
-        tuple val(level), path(bracken_reports)
+    tuple val(level), path(bracken_reports)
 
     output:
-        path("bracken_analytic_matrix_${level}.csv"), emit: bracken_matrix
+    path ("bracken_analytic_matrix_${level}.csv"), emit: bracken_matrix
 
     script:
     """

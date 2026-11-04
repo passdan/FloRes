@@ -4,18 +4,14 @@ process runqc {
     tag { sample_id }
     label 'trimming'
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
-    publishDir "${params.output}/QC_analysis/fastp", mode: 'copy',
-        saveAs: { filename -> filename.endsWith('.log') ? filename : null }
+    publishDir "${params.output}/QC_analysis/fastp", mode: 'copy', saveAs: { filename -> filename.endsWith('.log') ? filename : null }
 
     input:
-        tuple val(sample_id), path(reads)
+    tuple val(sample_id), path(reads)
 
     output:
-        tuple val(sample_id), path("${sample_id}*P.fastq.gz"), emit: paired_fastq
-        path("${sample_id}.fastp.log"), emit: fastp_stats
+    tuple val(sample_id), path("${sample_id}*P.fastq.gz"), emit: paired_fastq
+    path ("${sample_id}.fastp.log"), emit: fastp_stats
 
     script:
     """

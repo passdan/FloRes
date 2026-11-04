@@ -41,7 +41,7 @@ profiles {
   conda {
     includeConfig "config/conda.config"
     conda.enabled = true
-    conda.cacheDir = "$baseDir/envs/"
+    conda.cacheDir = "${projectDir}/envs/"
     conda.useMamba = true
     conda.createTimeout = '30 min'
   }
@@ -54,12 +54,12 @@ profiles {
     includeConfig "config/singularity.config"
     singularity.enabled = true
     singularity.autoMounts = true
-    singularity.cacheDir = "$baseDir/envs/"
+    singularity.cacheDir = "${projectDir}/envs/"
   }
   conda_slurm {
     includeConfig "config/conda_slurm.config"
     process.executor = 'slurm'
-    conda.cacheDir = "$baseDir/envs/"
+    conda.cacheDir = "${projectDir}/envs/"
     conda.enabled = true
     conda.useMamba = true
     conda.createTimeout = '30 min'
@@ -69,7 +69,7 @@ profiles {
     process.executor = 'slurm'
     singularity.enabled = true
     singularity.autoMounts = true
-    singularity.cacheDir = "$baseDir/envs/"
+    singularity.cacheDir = "${projectDir}/envs/"
   }
 }
 ```
@@ -82,66 +82,25 @@ The params section allows you to set the different commmand-line options that ca
 ### Modifying the params.config file
 Below is a list of all of the parameters that AMR++ uses by default. They can be found in the ```params.config``` file in the main directory. These parameters can be modified by changing this file or specifying any of these parameters on the command line using a double dash, like this: ```--reads "path/to/your/reads/*_R{1,2}.fastq.gz"```. Otherwise, change the parameters in the ```params.config``` file prior to running the AMR++ pipeline.
 
-These are all of the parameters used by AMR++:
-```bash
-params {
-    /* Location of forward and reverse read pairs */
-    reads = "${baseDir}/data/raw/*_R{1,2}.fastq.gz"
+The authoritative list is `params.config` itself, which is commented throughout.
+It is not reproduced here, because an inline copy drifts out of date.
 
-    /* Location of reference/host genome */
-    reference = "${baseDir}/data/host/chr21.fasta.gz"
+The parameters fall into four groups:
 
-    /* Output directory */
-    output = "test_results"
-    
-    /* Kraken database location, default is "null" */   
-    kraken_db = null
+| Group | Parameters |
+|---|---|
+| Input / output | `pipeline`, `reads`, `bam_files`, `split`, `output` |
+| Reference data | `host`, `host_index`, `kraken_db`, `amr`, `amr_index`, `annotation`, `megares_lengths`, `multiqc` |
+| Stage toggles | `fastqc`, `trim`, `host_removal`, `snp`, `deduped`, `kraken`, `bracken`, `normalise_to_length` |
+| Analysis | `prefix`, `depth_basis`, `threshold`, `min`, `max`, `skip`, `samples`, `kraken_confidence_filter`, `kraken_confidence`, `readlen`, `taxlevel` |
 
-    /* Location of amr index files */
-    amr_index = ""
+Every toggle is a true/false value. Note that Nextflow 26.04's strict parser does
+not coerce command line values, so the pipeline reads them through `as_bool()` in
+`modules/functions.nf`; add any new boolean parameter the same way.
 
-    /* Location of antimicrobial resistance (MEGARes) database */
-    amr = "${baseDir}/data/amr/megares_database_v3.00.fasta"
+Per-process CPU and memory requests, and all error-handling policy, live in the
+`process` block of `params.config` rather than in the process definitions.
 
-    /* Location of amr annotation file */
-    annotation = "${baseDir}/data/amr/megares_annotations_v3.00.csv"
-
-    /* Location of SNP confirmation script */
-    snp_confirmation = "${baseDir}/bin/snp_confirmation.py"
-
-    /* Number of threads */
-    threads = 4
-
-    /* Trimmomatic trimming parameters */
-    adapters = "${baseDir}/data/adapters/nextera.fa"
-
-    leading = 3
-    trailing = 3
-    slidingwindow = "4:15"
-    minlen = 36
-
-    /* Resistome threshold */
-    threshold = 10
-
-    /* Starting rarefaction level */
-    min = 5
-
-    /* Ending rarefaction level */
-    max = 100
-
-    /* Number of levels to skip */
-    skip = 5
-
-    /* Number of iterations to sample at */
-    samples = 1
-
-    /* multiQC */
-    multiqc = "$baseDir/data/multiqc"
-
-    /* Display help message */
-    help = false
-}
-```
 ### Modifying parameters using the command-line
 
 #### Analyzing your samples
@@ -165,7 +124,7 @@ nextflow run . -profile singularity  --reads "path/to/your/reads/*_R{1,2}.fastq.
 By default, the pipeline uses the default minikraken database (~4GB) to classify and assign taxonomic labels to your sequences. As Kraken loads this database into memory, this mini database is particularly useful for people who do not have access to large memory servers. We provide a script to easily download the minikraken database.
 
 ```bash
- sh download_minikraken.sh
+ bash scripts/download_minikraken.sh data/
  ```
 
 If you would like to use a custom database or the standard Kraken database (~160GB), you will need to build it yourself and modify the **kraken_db** environment variable in the ```params.config ``` file to point to its location on your machine. 

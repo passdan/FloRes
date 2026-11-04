@@ -3,11 +3,10 @@ Dependencies
 
 AMR++ uses a variety of open-source tools. The tools used, descriptions, and version specifics are provided below. These dependencies can be installed manually to your local computing cluster, or by changing the ```-profile``` parameter, they can be handled using conda, sigularity, or docker.
 
-### Trimmomatic
-  - Description: Trimmomatic is a tool for removing low quality base pairs (bps) and adapter sequences from raw sequence data.
-  - Version: 0.39
-  - DOI: https://doi.org/10.1093/bioinformatics/btu170
-  
+### fastp
+  - Description: An all-in-one FASTQ preprocessor for quality filtering, adapter trimming and quality pruning. Replaced Trimmomatic.
+  - DOI: https://doi.org/10.1093/bioinformatics/bty560
+
 ### FastQC
   - Description: A quality control tool for high throughput sequence data.
   - Version: 0.11.8
@@ -26,6 +25,10 @@ AMR++ uses a variety of open-source tools. The tools used, descriptions, and ver
   - Description: BWA is a short and long read sequence aligner for aligning raw sequence data to a reference genome.
   - Version: 0.7.17
   - DOI: https://doi.org/10.1093/bioinformatics/btp324
+
+### Bowtie2
+  - Description: Bowtie2 is a fast and memory-efficient read aligner, used here for host read removal and as an alternative MEGARes aligner.
+  - DOI: https://doi.org/10.1038/nmeth.1923
 
 ### Kraken2
   - Description: Kraken is a fast taxonomic sequence classifier that assigns taxonomy labels to short-reads.
@@ -52,12 +55,13 @@ AMR++ uses a variety of open-source tools. The tools used, descriptions, and ver
   - Version: 0.0.0
   - DOI: 
 
-# Optional software
-
 ### Bracken
   - Description: Bracken (Bayesian Reestimation of Abundance with KrakEN) is a highly accurate statistical method that computes the abundance of species in DNA sequences from a metagenomics sample.
   - Version: 2.7
   - DOI: 10.7717/peerj-cs.104
+  - Note: required when `--bracken true`, which is the default. Also provides `combine_bracken_outputs.py`.
+
+# Optional software
 
 ### Krona
   - Description: Krona Tools is a set of scripts to create Krona charts from several Bioinformatics tools as well as from text and XML files.

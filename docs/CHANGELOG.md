@@ -1,6 +1,90 @@
 Details on AMR++ updates
 ------------
 
+## 2026-11-04 : FloRes cleanup and Nextflow 26.04
+
+### Nextflow 26.04 / strict syntax
+- Migrated to the strict syntax parser, which is the default from 26.04. Full
+  detail in `docs/nextflow-26-migration.md`. Requires Java 17 or newer.
+- Boolean parameters must now be read through `as_bool()` in
+  `modules/functions.nf`: the strict parser does not coerce command line values,
+  so `--kraken false` arrives as the truthy string `"false"`.
+
+### Pipeline consolidation
+- One `standard` pipeline replaces `demo`, `fast_AMR`, `standard_AMR`,
+  `standard_AMR_wKraken` and `standard_AMR_wKraken_and_Bracken`. Stages are
+  switched with `--fastqc`, `--trim`, `--host_removal`, `--snp`, `--deduped`,
+  `--kraken`, `--bracken` and `--normalise_to_length`.
+- `--pipeline` values went from 15 to 6: `standard`, `bam`, `hifi`, `qc`,
+  `align`, `kraken`. Retired names error out naming their replacement flags.
+- Boolean parameters changed from `"Y"`/`"N"` to `true`/`false`.
+- Subworkflows went from 17 to 8, modules from 12 to 8. The three near-duplicate
+  resistome subworkflows became one `RESISTOME_WF` taking an output prefix, which
+  also removed the `addParams` include that strict syntax rejects.
+- `hifi` is now BAM-to-FASTQ feeding the standard pipeline rather than a separate
+  workflow. The interleaved Kraken subworkflow merged into `runkraken`.
+
+### Length normalisation
+- New `normalise_matrix` process producing RPKM-normalised count matrices for
+  both the standard and SNP-confirmed matrices, via `bin/normalise_to_length.py`.
+- `--depth_basis classified|total` chooses the denominator. `classified` (default)
+  uses the Kraken matrix column sums; `total` adds unclassified reads from
+  `kraken_unclassifieds.csv`. Values are not comparable between the two.
+- `--megares_lengths` points at the gene lengths table, added at
+  `data/amr/megares_lengths.txt`.
+
+### Removed
+- Trimmomatic. fastp has done the trimming for some time and the trimmomatic path
+  was already commented out. The `--adapters`, `--leading`, `--trailing`,
+  `--minlen` and `--slidingwindow` parameters are gone with it.
+- QIIME 2 / 16S support, including `data/Test_16S_data` and the dada2 parameters.
+- `--threads`. Processes use `task.cpus`, set per process in config.
+- `modules/Microbiome/kraken2.nf`, a dead duplicate that did not parse, and its
+  `bin/kraken2_long_to_wide.py`.
+- `modules/Alignment/minimap2.nf`, `modules/nf-functions.nf`,
+  `config/old_singularity_slurm.config` and four unreferenced conda env files.
+- Bowtie2 deduplication, which only ever printed "not implemented" and had Groovy
+  comments inside a bash block.
+
+### Fixed
+- `main.nf` reported missing input whenever input was provided: the condition was
+  inverted and used a single `|`.
+- `bwa_align`'s dedup branch wrote and deleted an unused SAM and used the
+  deprecated `samtools rmdup`. Rewritten around `samtools markdup`. **Deduplicated
+  counts will differ slightly from previous runs.**
+- `runkrakenInterleaved` passed `--fastq-input`, a Kraken 1 flag.
+- `multiqc`'s `publishDir` tested for `multiqc_data/*`, which never matched, so
+  that output was declared but never published.
+- `SAMTOOLS_BAM2FQ` in split mode emitted unpaired and singleton reads into the
+  same glob as the paired output; they now go to `/dev/null`.
+- The `google-batch` profile interpolated environment variables directly, which
+  broke any run outside GCP because Nextflow parses every profile. It also set
+  `refDir` rather than `params.refDir`, so that value was silently ignored.
+- `.gitattributes` added. A Windows clone produced CRLF endings, which made every
+  `bin/` script unexecutable via its shebang once called directly.
+- The SLURM submit scripts in `scripts/` used retired pipeline names, `--snp Y`,
+  a `--resume` typo and a pinned 24.10 binary.
+- `wb/run.sh` invoked `main_AMRplusplus.nf`, which has never existed in this
+  repository, and passed the retired `standard_AMR_wKraken_and_Bracken`.
+- `bin/snp_long_to_wide.py` had CRLF line endings committed in the index, so on a
+  fresh Linux clone its shebang resolved to `python3\r` and `--snp true` would
+  have failed at the final step.
+- `docs/configuration.md` embedded a stale copy of `params.config` listing
+  parameters that no longer exist (`reference`, `snp_confirmation`, `threads`,
+  the trimmomatic set). Replaced with a grouped summary that points at the file.
+- `docs/dependencies.md` still listed Trimmomatic; now lists fastp and Bowtie2,
+  and marks Bracken as required rather than optional since `--bracken` defaults
+  to true.
+
+### Consistency
+- All error handling moved from the 22 per-process directives into `params.config`,
+  where config precedence means it would have won anyway.
+- Resource requests moved out of process bodies into config.
+- `index` renamed `bwa_index`, for symmetry with `bowtie2_index`.
+- Manual helper scripts moved from `bin/` to `scripts/`. Nextflow stages `bin/`
+  onto every task's PATH, so only pipeline scripts belong there.
+- Every module and subworkflow now opens with a comment saying what it does.
+
 ## 2022-09-06 : AMR++ v3 update
 - Change in repository from [AMR++ v2](https://github.com/meglab-metagenomics/amrplusplus_v2) to this repository under the [microbial ecology group github page](https://github.com/Microbial-Ecology-Group/AMRplusplus). This repository will include all further updates to AMR++. 
 - Addition of [SNP confirmation software](https://github.com/Isabella136/AmrPlusPlus_SNP)

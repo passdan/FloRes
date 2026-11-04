@@ -1,0 +1,27 @@
+# Force LF in the working tree regardless of core.autocrlf.
+#
+# Without this, a clone on Windows gets CRLF line endings, which breaks any
+# script executed via its shebang: /usr/bin/env resolves "python3\r" and fails
+# with "No such file or directory". Nextflow puts bin/ on each task's PATH and
+# calls those scripts directly, so they must be LF.
+
+* text=auto eol=lf
+
+# Reference databases and vendored third-party code are left exactly as
+# committed. Some of these files have CRLF or mixed line endings in the index,
+# and normalising them would rewrite scientific reference data as a side effect
+# of a line-ending policy. Change them deliberately if at all:
+#   data/amr/megares_annotations_v3.00.csv              CRLF
+#   data/amr/megares_to_external_header_mappings_v3.00.csv  CRLF
+#   data/amr/megares_database_v3.00.fasta               mixed
+#   bin/AmrPlusPlus_SNP/data/source.csv                 mixed
+data/**                 -text
+bin/AmrPlusPlus_SNP/**  -text
+
+# Never touch these
+*.png  binary
+*.gz   binary
+*.tgz  binary
+*.sif  binary
+*.bam  binary
+*.bai  binary

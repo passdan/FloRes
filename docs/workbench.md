@@ -133,7 +133,7 @@ The `nextflow.config` workbench profile and `params_google_batch.yaml` contain w
 ### Step 6: Add Workflow in Workbench UI
 
 1. Go to **Workflows** in your workspace and add a new workflow from the git repository.
-2. Set the main script to `main_AMRplusplus.nf`.
+2. Set the main script to `main.nf`.
 3. The display name must **not** contain `+` characters (Workbench rejects them).
 
 ### Step 7: Create and Run a Job
@@ -174,7 +174,7 @@ conda activate AMRplusplus_env
 nextflow -v
 
 # Run the test pipeline (takes ~5 minutes)
-nextflow run main_AMRplusplus.nf
+nextflow run main.nf
 ```
 
 Expected output: results in `~/repos/FloRes/test_results`
@@ -197,7 +197,6 @@ Each process that needs more than default resources must explicitly specify a ma
 | bowtie2_rm_contaminant_fq | 32 | 256 GB | n2-highmem-32 |
 | bwa_align | 16 | 128 GB | n2-highmem-32 |
 | runkraken | 16 | 256 GB | n2-highmem-32 |
-| runkrakenInterleaved | 16 | 256 GB | n2-highmem-32 |
 
 ### Supporting Environments
 

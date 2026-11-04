@@ -74,7 +74,7 @@ if [[ "$ENV" == "local" ]]; then
         exit 1
     fi
 
-    nextflow run main_AMRplusplus.nf -profile "${NEXTFLOW_PROFILE}"
+    nextflow run main.nf -profile "${NEXTFLOW_PROFILE}"
     exit 0
 fi
 
@@ -141,7 +141,7 @@ NF_ARGS=(-profile "${NEXTFLOW_PROFILE}")
 if [[ -n "${NEXTFLOW_PARAMS_FILE:-}" ]]; then
     NF_ARGS+=(-params-file "${NEXTFLOW_PARAMS_FILE}")
 elif [[ -n "${NEXTFLOW_CONFIG:-}" ]]; then
-    NF_ARGS+=(-c "${NEXTFLOW_CONFIG}" --pipeline "standard_AMR_wKraken_and_Bracken")
+    NF_ARGS+=(-c "${NEXTFLOW_CONFIG}" --pipeline standard)
 fi
 
-nextflow run main_AMRplusplus.nf "${NF_ARGS[@]}" -with-trace "trace-${now}.txt"
+nextflow run main.nf "${NF_ARGS[@]}" -with-trace "trace-${now}.txt"

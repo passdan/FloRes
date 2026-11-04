@@ -4,16 +4,13 @@ process bowtie2_index {
     tag "Creating bowtie2 index"
     label "alignmentBowtie2"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
     publishDir "${params.output}/Alignment/Bowtie2_Index", mode: "copy"
 
     input:
-        path fasta
+    path fasta
 
     output:
-        path("${fasta.simpleName}*"), emit: bowtie2index, includeInputs: true
+    path ("${fasta.simpleName}*"), emit: bowtie2index, includeInputs: true
 
     script:
     """
@@ -22,20 +19,17 @@ process bowtie2_index {
 }
 
 process bowtie2_align {
-    tag "$pair_id"
+    tag "${pair_id}"
     label "alignmentBowtie2"
-
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
 
     publishDir "${params.output}/Alignment/BAM_files/Standard", mode: "copy"
 
     input:
-        path indexfiles
-        tuple val(pair_id), path(reads)
+    path indexfiles
+    tuple val(pair_id), path(reads)
 
     output:
-        tuple val(pair_id), path("${pair_id}_alignment_sorted.bam"), emit: bowtie2_bam
+    tuple val(pair_id), path("${pair_id}_alignment_sorted.bam"), emit: bowtie2_bam
 
     script:
     """
@@ -49,19 +43,15 @@ process bowtie2_rm_contaminant_fq {
     tag { pair_id }
     label "alignmentBowtie2"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
-    publishDir "${params.output}/HostRemoval/NonHostFastq", mode: "copy",
-        saveAs: { filename -> filename.endsWith("fastq.gz") ? filename : null }
+    publishDir "${params.output}/HostRemoval/NonHostFastq", mode: "copy", saveAs: { filename -> filename.endsWith("fastq.gz") ? filename : null }
 
     input:
-        path indexfiles
-        tuple val(pair_id), path(reads)
+    path indexfiles
+    tuple val(pair_id), path(reads)
 
     output:
-        tuple val(pair_id), path("${pair_id}.non.host.R*.fastq.gz"), emit: nonhost_reads
-        path("${pair_id}.samtools.idxstats"), emit: host_rm_stats
+    tuple val(pair_id), path("${pair_id}.non.host.R*.fastq.gz"), emit: nonhost_reads
+    path ("${pair_id}.samtools.idxstats"), emit: host_rm_stats
 
     script:
     """
@@ -93,19 +83,16 @@ process HostRemovalStats {
     tag "HostRemovalStats"
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
     publishDir "${params.output}/Results/Stats", mode: "copy"
 
     input:
-        path(host_rm_stats)
+    path host_rm_stats
 
     output:
-        path("host.removal.stats"), emit: combo_host_rm_stats
+    path ("host.removal.stats"), emit: combo_host_rm_stats
 
     script:
     """
-    \${PYTHON3:-python3} ${projectDir}/bin/samtools_idxstats.py -i ${host_rm_stats} -o host.removal.stats
+    samtools_idxstats.py -i ${host_rm_stats} -o host.removal.stats
     """
 }

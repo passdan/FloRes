@@ -1,53 +1,39 @@
-include { as_bool } from "${projectDir}/modules/functions.nf"
+// Convert BAM alignments back to FASTQ.
+
+include { as_bool } from '../functions.nf'
 
 process SAMTOOLS_BAM2FQ {
-    tag "$meta"
+    tag { sample_id }
     label 'alignment'
-    cpus 16
 
+    publishDir "${params.output}/Bam2Fastq", mode: 'copy'
 
     input:
-    tuple val(meta), path(inputbam)
+    tuple val(sample_id), path(inputbam)
     val split
 
     output:
-    tuple val(meta), path("*.fq.gz"), emit: reads
-    path "versions.yml"             , emit: versions
+    tuple val(sample_id), path("*.fq.gz"), emit: reads
 
     script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta}"
-
-    if( as_bool(split) ) {
+    if (as_bool(split)) {
+        // Unpaired and singleton reads go to /dev/null so that the output glob
+        // picks up only the two paired files.
         """
-        samtools \\
-            bam2fq \\
-            $args \\
-            -@ $task.cpus \\
-            -1 ${prefix}_1.fq.gz \\
-            -2 ${prefix}_2.fq.gz \\
-            -0 ${prefix}_other.fq.gz \\
-            -s ${prefix}_singleton.fq.gz \\
-            $inputbam
-
-        cat <<-END_VERSIONS > versions.yml
-        "${task.process}":
-            samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//')
-        END_VERSIONS
+        \${SAMTOOLS:-samtools} bam2fq \\
+            -@ ${task.cpus} \\
+            -1 ${sample_id}_1.fq.gz \\
+            -2 ${sample_id}_2.fq.gz \\
+            -0 /dev/null \\
+            -s /dev/null \\
+            -n \\
+            ${inputbam}
         """
     }
     else {
         """
-        samtools \\
-            bam2fq \\
-            $args \\
-            -@ ${task.cpus}  \\
-            $inputbam | gzip --no-name > ${prefix}_interleaved.fq.gz
-
-        cat <<-END_VERSIONS > versions.yml
-        "${task.process}":
-            samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//')
-        END_VERSIONS
+        \${SAMTOOLS:-samtools} bam2fq -@ ${task.cpus} ${inputbam} \\
+            | gzip --no-name > ${sample_id}_interleaved.fq.gz
         """
     }
 }

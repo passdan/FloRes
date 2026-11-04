@@ -7,35 +7,25 @@
 //   nextflow run . -profile conda --reads "data/raw/*_R{1,2}.fastq.gz"
 //   nextflow run . -profile conda --reads "..." --host_removal false --bracken false
 
-include { AMRPLUSPLUS }       from "${projectDir}/subworkflows/amrplusplus.nf"
-include { RESISTOME_WF }      from "${projectDir}/subworkflows/resistome.nf"
-include { FASTQ_QC_WF }       from "${projectDir}/subworkflows/fastq_information.nf"
-include { FASTQ_ALIGN_WF }    from "${projectDir}/subworkflows/fastq_align.nf"
-include { FASTQ_MICROBIOME_WF } from "${projectDir}/subworkflows/fastq_microbiome.nf"
-include { SAMTOOLS_BAM2FQ }   from "${projectDir}/modules/Tools/bam2fq.nf"
-include { as_bool ; check_file ; check_dir } from "${projectDir}/modules/functions.nf"
+include { AMRPLUSPLUS } from './subworkflows/amrplusplus.nf'
+include { RESISTOME_WF } from './subworkflows/resistome.nf'
+include { FASTQ_QC_WF } from './subworkflows/fastq_information.nf'
+include { FASTQ_ALIGN_WF } from './subworkflows/fastq_align.nf'
+include { FASTQ_MICROBIOME_WF } from './subworkflows/fastq_microbiome.nf'
+include { SAMTOOLS_BAM2FQ } from './modules/Tools/bam2fq.nf'
+include { as_bool ; check_file } from './modules/functions.nf'
 
-def PIPELINES = ['standard', 'bam', 'hifi', 'qc', 'align', 'kraken']
+def pipelines() {
+    return ['standard', 'bam', 'hifi', 'qc', 'align', 'kraken']
+}
 
-def RETIRED = [
-    'demo'                              : '--pipeline standard --host_removal false',
-    'fast_AMR'                          : '--pipeline standard --host_removal false',
-    'standard_AMR'                      : '--pipeline standard --kraken false',
-    'standard_AMR_wKraken'              : '--pipeline standard --bracken false',
-    'standard_AMR_wKraken_and_Bracken'  : '--pipeline standard',
-    'standard_hifi'                     : '--pipeline hifi',
-    'resistome'                         : '--pipeline standard --kraken false --trim false --host_removal false',
-    'resistome_BWA'                     : '--pipeline standard --kraken false --trim false --host_removal false',
-    'bam_resistome'                     : '--pipeline bam',
-    'kraken_and_bracken'                : '--pipeline kraken',
-    'eval_qc'                           : '--pipeline qc',
-    'trim_qc'                           : '--pipeline standard --kraken false',
-    'rm_host'                           : '--pipeline standard --kraken false',
-    'qiime2'                            : 'removed: 16S/QIIME2 support has been dropped'
-]
+def retired() {
+    return ['demo': '--pipeline standard --host_removal false', 'fast_AMR': '--pipeline standard --host_removal false', 'standard_AMR': '--pipeline standard --kraken false', 'standard_AMR_wKraken': '--pipeline standard --bracken false', 'standard_AMR_wKraken_and_Bracken': '--pipeline standard', 'standard_hifi': '--pipeline hifi', 'resistome': '--pipeline standard --kraken false --trim false --host_removal false', 'resistome_BWA': '--pipeline standard --kraken false --trim false --host_removal false', 'bam_resistome': '--pipeline bam', 'kraken_and_bracken': '--pipeline kraken', 'eval_qc': '--pipeline qc', 'trim_qc': '--pipeline standard --kraken false', 'rm_host': '--pipeline standard --kraken false', 'qiime2': 'removed: 16S/QIIME2 support has been dropped']
+}
 
 def helpMessage() {
-    log.info """
+    log.info(
+        """
     FloRes / AMR++ Nextflow pipeline
     ================================
 
@@ -76,22 +66,26 @@ def helpMessage() {
 
     Run --help for this message.
     """
+    )
 }
 
 workflow {
-    main:
-    if( as_bool(params.help) ) {
+    if (as_bool(params.help)) {
         helpMessage()
-        return
+        return null
     }
 
-    if( !PIPELINES.contains(params.pipeline) ) {
-        if( RETIRED.containsKey(params.pipeline) )
-            error "--pipeline ${params.pipeline} was removed in this version. Use: ${RETIRED[params.pipeline]}"
-        error "Unknown --pipeline '${params.pipeline}'. Choose one of: ${PIPELINES.join(', ')}"
+    def valid = pipelines()
+    if (!valid.contains(params.pipeline)) {
+        def dead = retired()
+        if (dead.containsKey(params.pipeline)) {
+            error("--pipeline ${params.pipeline} was removed in this version. Use: ${dead[params.pipeline]}")
+        }
+        error("Unknown --pipeline '${params.pipeline}'. Choose one of: ${valid.join(', ')}")
     }
 
-    log.info """
+    log.info(
+        """
     A M R + +   N F   P I P E L I N E
     =================================
     pipeline     : ${params.pipeline}
@@ -99,44 +93,45 @@ workflow {
     bams         : ${params.bam_files}
     output       : ${params.output}
     """.stripIndent()
+    )
 
     def needs_reads = ['standard', 'qc', 'align', 'kraken'].contains(params.pipeline)
-    def needs_bams  = ['bam', 'hifi'].contains(params.pipeline)
+    def needs_bams = ['bam', 'hifi'].contains(params.pipeline)
 
-    if( needs_reads && !params.reads )
-        error "--pipeline ${params.pipeline} needs --reads"
-    if( needs_bams && !params.bam_files )
-        error "--pipeline ${params.pipeline} needs --bam_files"
+    if (needs_reads && !params.reads) {
+        error("--pipeline ${params.pipeline} needs --reads")
+    }
+    if (needs_bams && !params.bam_files) {
+        error("--pipeline ${params.pipeline} needs --bam_files")
+    }
 
     fastq_ch = channel.empty()
-    if( needs_reads ) {
-        fastq_ch = channel
-            .fromFilePairs(params.reads, size: params.reads.contains('{') ? 2 : 1)
-            .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
+    if (needs_reads) {
+        fastq_ch = channel.fromFilePairs(params.reads, size: params.reads.contains('{') ? 2 : 1)
+            .ifEmpty { error("Cannot find any reads matching: ${params.reads}") }
             .map { id, files -> tuple(id.split('\\.')[0], files) }
     }
 
     bam_ch = channel.empty()
-    if( needs_bams ) {
-        bam_ch = channel
-            .fromPath(params.bam_files)
-            .ifEmpty { error "Cannot find any bam files matching: ${params.bam_files}" }
+    if (needs_bams) {
+        bam_ch = channel.fromPath(params.bam_files)
+            .ifEmpty { error("Cannot find any bam files matching: ${params.bam_files}") }
             .map { entry -> tuple(entry.baseName.split('\\.')[0], entry) }
     }
 
     taxlevel_ch = channel.fromList(params.taxlevel.tokenize(','))
 
-    if( params.pipeline == 'standard' ) {
+    if (params.pipeline == 'standard') {
         AMRPLUSPLUS(
             fastq_ch,
             as_bool(params.host_removal) ? check_file(params.host, 'host') : [],
             check_file(params.amr, 'amr'),
             check_file(params.annotation, 'annotation'),
             params.kraken_db,
-            taxlevel_ch
+            taxlevel_ch,
         )
     }
-    else if( params.pipeline == 'hifi' ) {
+    else if (params.pipeline == 'hifi') {
         SAMTOOLS_BAM2FQ(bam_ch, params.split)
         AMRPLUSPLUS(
             SAMTOOLS_BAM2FQ.out.reads,
@@ -144,35 +139,37 @@ workflow {
             check_file(params.amr, 'amr'),
             check_file(params.annotation, 'annotation'),
             params.kraken_db,
-            taxlevel_ch
+            taxlevel_ch,
         )
     }
-    else if( params.pipeline == 'bam' ) {
+    else if (params.pipeline == 'bam') {
         RESISTOME_WF(
             bam_ch,
             check_file(params.amr, 'amr'),
             check_file(params.annotation, 'annotation'),
             params.prefix,
-            true
+            true,
         )
     }
-    else if( params.pipeline == 'qc' ) {
+    else if (params.pipeline == 'qc') {
         FASTQ_QC_WF(fastq_ch, params.multiqc)
     }
-    else if( params.pipeline == 'align' ) {
+    else if (params.pipeline == 'align') {
         FASTQ_ALIGN_WF(fastq_ch, check_file(params.amr, 'amr'))
     }
-    else if( params.pipeline == 'kraken' ) {
+    else if (params.pipeline == 'kraken') {
         FASTQ_MICROBIOME_WF(fastq_ch, params.kraken_db, taxlevel_ch)
     }
 
     workflow.onComplete = {
-        log.info """
+        log.info(
+            """
         Pipeline completed!
         Started at   : ${workflow.start}
         Finished at  : ${workflow.complete}
         Time elapsed : ${workflow.duration}
         Status       : ${workflow.success ? 'OK' : 'failed'}
         """.stripIndent()
+        )
     }
 }

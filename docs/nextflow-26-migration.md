@@ -195,7 +195,154 @@ already passed to the tools. The now-unused `threads` param is gone.
 `config/singularity_slurm.config` and `config/apptainer_slurm.config`. It belongs
 in `executor { }` and was silently ignored where it sat.
 
-### 12. Deprecations cleared
+### 12. Include paths must be literal strings
+
+This is the first error you hit, and it stops the parse immediately:
+
+```
+nextflow lint main.nf
+Error main.nf:10:36: Unexpected input: '"'
+```
+
+The include source has to be a plain string literal. Interpolation is not allowed,
+so the `"$baseDir/..."` and `"${projectDir}/..."` forms both fail. Paths are
+resolved relative to the including script:
+
+```groovy
+// before
+include { AMRPLUSPLUS } from "${projectDir}/subworkflows/amrplusplus.nf"
+
+// after
+include { AMRPLUSPLUS } from './subworkflows/amrplusplus.nf'
+```
+
+Note this applies only to `include`. `${projectDir}` is still fine inside process
+scripts and directives such as `publishDir`.
+
+Thirty include statements across 13 files were rewritten to relative paths.
+
+### 13. Top-level variable declarations moved into functions
+
+Only declarations are allowed at script level: processes, workflows, functions and
+includes. A top-level `def PIPELINES = [...]` is a statement, not a declaration,
+so the valid-pipeline list and the retired-name map became `pipelines()` and
+`retired()` functions.
+
+### 14. `bin/` scripts called bare instead of via `projectDir`
+
+`nextflow lint` warns on `projectDir` inside a process:
+
+```
+Warn modules/Resistome/resistome.nf:87:28: The use of `projectDir` in a process is
+discouraged -- input files should be provided as process inputs
+```
+
+Nextflow already puts the project's `bin/` directory on the PATH of every task,
+including in containers and on cloud executors, so the path and the Python
+indirection were both unnecessary:
+
+```bash
+# before
+${PYTHON3:-python3} ${projectDir}/bin/amr_long_to_wide.py -i ... -o ...
+
+# after
+amr_long_to_wide.py -i ... -o ...
+```
+
+This requires each script to be executable and to carry a shebang.
+`bin/rfplot.py` and `bin/QC_summary_stats.py` had no shebang, and
+`bin/snp_long_to_wide.py` and `bin/normalise_to_length.py` were mode 100644; both
+were fixed, the latter with `git update-index --chmod=+x`.
+
+It also requires **LF line endings**, which is why `.gitattributes` was added — see
+below.
+
+`cp -r ${projectDir}/bin/AmrPlusPlus_SNP/* .` in `runsnp` can't use the PATH
+mechanism because it needs a whole directory, so it became a `path(amrsnp)`
+process input supplied by `RESISTOME_WF`.
+
+Two `projectDir` warnings are left deliberately, in `dlkraken` and
+`build_dependencies`. Both use `publishDir "${projectDir}/..."` to cache a
+downloaded database and compiled binaries back into the repo so later runs reuse
+them, and the calling workflows check for those files before invoking the process.
+Publishing elsewhere would break that. Each carries a comment saying so.
+
+### 15. `.gitattributes` added — CRLF made the bin/ scripts unexecutable
+
+Cloning on Windows with the default `core.autocrlf` gives CRLF line endings. A
+script executed via its shebang then fails:
+
+```
+/usr/bin/env: 'python3\r': No such file or directory
+```
+
+This was latent for as long as the scripts were invoked as
+`python3 script.py`, because Python tolerates `\r\n`. Calling them directly
+exposes it. `.gitattributes` now pins the working tree to LF:
+
+```gitattributes
+* text=auto eol=lf
+```
+
+It also removes the side effect where every tracked file showed as modified in
+`git status` on a Windows clone.
+
+`data/**` and `bin/AmrPlusPlus_SNP/**` are excluded with `-text`. Several files
+there have CRLF or mixed line endings committed in the index, and a blanket LF
+policy would rewrite reference databases as a side effect:
+
+| File | Index endings |
+|---|---|
+| `data/amr/megares_annotations_v3.00.csv` | CRLF |
+| `data/amr/megares_to_external_header_mappings_v3.00.csv` | CRLF |
+| `data/amr/megares_database_v3.00.fasta` | mixed |
+| `bin/AmrPlusPlus_SNP/data/source.csv` | mixed |
+
+Worth knowing about the annotations file: because it is CRLF, a reader that
+splits on `\n` without stripping `\r` sees the last column, `snp`, as
+`RequiresSNPConfirmation\r` rather than `RequiresSNPConfirmation`. Python's `csv`
+module with `newline=''` handles it correctly, and the pipeline's own filtering
+works off the pipe-delimited gene header rather than this column, so nothing is
+currently known to be affected. Normalise it deliberately if you want to rule it
+out.
+
+One genuine bug this surfaced: `bin/snp_long_to_wide.py` had CRLF **in the
+index**, not just the working tree. On a fresh Linux clone its shebang would
+resolve to `python3\r`, so `--snp true` would fail at the final step once the
+script is invoked directly rather than through `python3`. Fixed.
+
+### 16. Environment variables in unselected profiles
+
+`nextflow run . -preview` failed outside GCP on the `google-batch` profile, even
+though that profile was not selected. Nextflow parses every profile block in the
+config, and the block interpolated environment variables directly:
+
+```groovy
+process.container = "us-central1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${GOOGLE_ARTIFACT_REPO}/flores-workbench:latest"
+workDir = "gs://${GCS_BUCKET}/scratch"
+google.region = "${GCS_BUCKET_LOCATION}"
+```
+
+Implicit environment variables are not supported by the strict parser, and only
+`params` may be referenced as config variables. Each value is now read with
+`System.getenv` and a fallback, assigned to a param, and referenced through that
+param:
+
+```groovy
+params.gcp_project = System.getenv('GOOGLE_CLOUD_PROJECT') ?: 'GOOGLE_CLOUD_PROJECT-is-unset'
+process.container  = "us-central1-docker.pkg.dev/${params.gcp_project}/${params.gcp_artifact_repo}/flores-workbench:latest"
+google.project     = params.gcp_project
+```
+
+The fallbacks are deliberately invalid strings rather than empty, so selecting the
+profile without the environment set fails with a visibly wrong container path
+instead of a confusing GCP error.
+
+While in there: the profile set `refDir = "gs://${GCS_REF_BUCKET}"`, but `refDir`
+is not a Nextflow config option, so it silently did nothing. The `workbench`
+profile had it correctly as `params.refDir`; `google-batch` now matches.
+
+### 17. Deprecations cleared
 
 These still work but warn, and will become errors:
 

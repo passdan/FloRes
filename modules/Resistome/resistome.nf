@@ -1,20 +1,20 @@
 // Resistome quantification, SNP confirmation, rarefaction and normalisation.
 
-include { as_bool } from "${projectDir}/modules/functions.nf"
+include { as_bool } from '../functions.nf'
 
 process build_dependencies {
     tag "Fetching resistome dependencies"
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
+    // nextflow lint warns about projectDir in a process. It is deliberate here:
+    // the compiled binaries and the SNP code are cached into the repo so later
+    // runs reuse them. RESISTOME_WF checks for them before calling this.
     publishDir "${projectDir}/bin/", mode: "copy"
 
     output:
-        path("rarefaction"), emit: rarefactionanalyzer
-        path("resistome"), emit: resistomeanalyzer
-        path("AmrPlusPlus_SNP/*"), emit: amrsnp
+    path ("rarefaction"), emit: rarefactionanalyzer
+    path ("resistome"), emit: resistomeanalyzer
+    path ("AmrPlusPlus_SNP"), emit: amrsnp
 
     script:
     """
@@ -30,22 +30,18 @@ process runresistome {
     tag { sample_id }
     label "alignment"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
-    publishDir "${params.output}/ResistomeAnalysis/ResistomeCounts", mode: "copy",
-        saveAs: { filename -> filename.endsWith(".tsv") ? filename : null }
+    publishDir "${params.output}/ResistomeAnalysis/ResistomeCounts", mode: "copy", saveAs: { filename -> filename.endsWith(".tsv") ? filename : null }
 
     input:
-        tuple val(sample_id), path(bam)
-        path(amr)
-        path(annotation)
-        path(resistome)
-        val(prefix)
+    tuple val(sample_id), path(bam)
+    path amr
+    path annotation
+    path resistome
+    val prefix
 
     output:
-        tuple val(sample_id), path("${sample_id}*.tsv"), emit: resistome_tsv
-        path("${sample_id}.${prefix}.gene.tsv"), emit: resistome_counts
+    tuple val(sample_id), path("${sample_id}*.tsv"), emit: resistome_tsv
+    path ("${sample_id}.${prefix}.gene.tsv"), emit: resistome_counts
 
     script:
     """
@@ -70,21 +66,18 @@ process resistomeresults {
     tag "Make AMR count matrix"
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
     publishDir "${params.output}/Results", mode: "copy"
 
     input:
-        path(resistomes)
-        val(prefix)
+    path resistomes
+    val prefix
 
     output:
-        path("${prefix}_analytic_matrix.csv"), emit: raw_count_matrix
+    path ("${prefix}_analytic_matrix.csv"), emit: raw_count_matrix
 
     script:
     """
-    \${PYTHON3:-python3} ${projectDir}/bin/amr_long_to_wide.py \\
+    amr_long_to_wide.py \\
         -i ${resistomes} -o ${prefix}_analytic_matrix.csv
     """
 }
@@ -93,20 +86,16 @@ process runrarefaction {
     tag { sample_id }
     label "alignment"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
-    publishDir "${params.output}/ResistomeAnalysis/Rarefaction/Counts", mode: "copy",
-        saveAs: { filename -> filename.endsWith(".tsv") ? filename : null }
+    publishDir "${params.output}/ResistomeAnalysis/Rarefaction/Counts", mode: "copy", saveAs: { filename -> filename.endsWith(".tsv") ? filename : null }
 
     input:
-        tuple val(sample_id), path(bam)
-        path(annotation)
-        path(amr)
-        path(rarefaction)
+    tuple val(sample_id), path(bam)
+    path annotation
+    path amr
+    path rarefaction
 
     output:
-        path("*.tsv"), emit: rarefaction
+    path ("*.tsv"), emit: rarefaction
 
     script:
     """
@@ -136,23 +125,19 @@ process plotrarefaction {
     tag "Plot rarefaction results"
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
-    publishDir "${params.output}/ResistomeAnalysis/Rarefaction/Figures", mode: "copy",
-        saveAs: { filename -> filename.endsWith(".png") ? filename : null }
+    publishDir "${params.output}/ResistomeAnalysis/Rarefaction/Figures", mode: "copy", saveAs: { filename -> filename.endsWith(".png") ? filename : null }
 
     input:
-        path(rarefaction)
+    path rarefaction
 
     output:
-        path("*.png"), emit: plots
+    path ("*.png"), emit: plots
 
     script:
     """
     mkdir -p data/
     mv *.tsv data/
-    \${PYTHON3:-python3} ${projectDir}/bin/rfplot.py --dir ./data --nd --s --sd .
+    rfplot.py --dir ./data --nd --s --sd .
     """
 }
 
@@ -160,27 +145,31 @@ process runsnp {
     tag { sample_id }
     label "python"
 
-    errorStrategy 'ignore'
-
-    publishDir "${params.output}/ResistomeAnalysis", mode: "copy",
-        saveAs: { filename ->
-            if( filename.endsWith(".csv") ) "SNP_verification/$filename"
-            else if( filename.endsWith(".tsv") ) "SNP_verification_counts/$filename"
-            else null
+    publishDir "${params.output}/ResistomeAnalysis", mode: "copy", saveAs: { filename ->
+        if (filename.endsWith(".csv")) {
+            "SNP_verification/${filename}"
         }
+        else if (filename.endsWith(".tsv")) {
+            "SNP_verification_counts/${filename}"
+        }
+        else {
+            null
+        }
+    }
 
     input:
-        tuple val(sample_id), path(bam)
-        path(snp_count_matrix)
-        val(prefix)
+    tuple val(sample_id), path(bam)
+    path snp_count_matrix
+    path amrsnp
+    val prefix
 
     output:
-        path("${sample_id}.SNP_confirmed_gene.tsv"), emit: snp_counts
-        path("${sample_id}.${prefix}_SNPs${sample_id}/*")
+    path ("${sample_id}.SNP_confirmed_gene.tsv"), emit: snp_counts
+    path "${sample_id}.${prefix}_SNPs${sample_id}/*"
 
     script:
     """
-    cp -r ${projectDir}/bin/AmrPlusPlus_SNP/* .
+    cp -r ${amrsnp}/* .
 
     # Keep the bam name consistent with the count matrix name
     if [ "${bam}" != "${sample_id}.bam" ]; then
@@ -204,20 +193,18 @@ process snpresults {
     tag "Make SNP-confirmed matrix"
     label "python"
 
-    errorStrategy 'ignore'
-
     publishDir "${params.output}/Results", mode: "copy"
 
     input:
-        path(snp_counts)
-        val(prefix)
+    path snp_counts
+    val prefix
 
     output:
-        path("SNPconfirmed_${prefix}_analytic_matrix.csv"), emit: snp_matrix
+    path ("SNPconfirmed_${prefix}_analytic_matrix.csv"), emit: snp_matrix
 
     script:
     """
-    \${PYTHON3:-python3} ${projectDir}/bin/snp_long_to_wide.py \\
+    snp_long_to_wide.py \\
         -i ${snp_counts} -o SNPconfirmed_${prefix}_analytic_matrix.csv
     """
 }
@@ -226,23 +213,20 @@ process normalise_matrix {
     tag { "Normalise ${count_matrix.baseName}" }
     label "python"
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 3
-
     publishDir "${params.output}/Results", mode: "copy"
 
     input:
-        path(count_matrix)
-        path(kraken_matrix)
-        path(kraken_unclassifieds)
-        path(gene_lengths)
+    path count_matrix
+    path kraken_matrix
+    path kraken_unclassifieds
+    path gene_lengths
 
     output:
-        path("${count_matrix.baseName}_normalised.csv"), emit: normalised_matrix
+    path ("${count_matrix.baseName}_normalised.csv"), emit: normalised_matrix
 
     script:
     """
-    \${PYTHON3:-python3} ${projectDir}/bin/normalise_to_length.py \\
+    normalise_to_length.py \\
         -i ${count_matrix} \\
         -k ${kraken_matrix} \\
         -u ${kraken_unclassifieds} \\

@@ -28,19 +28,24 @@ module load singularity
 
 export NXF_OPTS="-Xms500M -Xmx2G"
 
+# Nextflow 26.04 or newer is required (strict syntax parser, Java 17+).
+# Set NEXTFLOW to a specific distribution file if it is not on your PATH.
+NEXTFLOW="${NEXTFLOW:-nextflow}"
+
+
 workdir="/scratch/scw2028"
 installdir="/scratch/b.dnp24ftx/AMR-local-mod"
 run="longshort/PacBio"
 
 
-nextflow run ${installdir}/main_AMR++.nf \
+"${NEXTFLOW}" run ${installdir}/main.nf \
 	-w "${workdir}/work" \
 	-c "${installdir}/config/singularity_slurm.config" \
 	--bam_files "${workdir}/${run}/mapped/*bam" \
-	--pipeline "bam_resistome" \
+	--pipeline bam \
 	--output "${workdir}/${run}/outputs" \
-	--snp Y \
-	--resume
+	--snp true \
+	-resume
 #	-with-report "${workdir}/${run}/logs/${run}-${SLURM_JOB_ID}.html" \
 #	-with-trace "${workdir}/${run}/logs/${run}-${SLURM_JOB_ID}.trace.txt" \
  #       -resume	
